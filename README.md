@@ -17,20 +17,34 @@ Video description custom nodes for ComfyUI powered by advanced vision-language m
 
 ```bash
 cd ComfyUI/custom_nodes
-git clone https://github.com/YOUR_USERNAME/ComfyUI-VideoDescription.git
+git clone https://github.com/IXIWORKS-KIMJUNGHO/ComfyUI-VideoDescription.git
 cd ComfyUI-VideoDescription
-pip install -r requirements.txt
+
+# Install ONLY the required packages
+# (ComfyUI already has torch, transformers, numpy, etc.)
+pip install qwen-vl-utils opencv-python
+
+# Optional: For DAM support (CUDA only)
+# pip install git+https://github.com/NVlabs/describe-anything.git
 ```
+
+⚠️ **IMPORTANT**: Do NOT run `pip install -r requirements.txt` directly!
+This will conflict with ComfyUI's existing packages. Install only the specific packages listed above.
 
 ### Method 2: Manual Installation
 
 1. Download this repository
 2. Extract to `ComfyUI/custom_nodes/ComfyUI-VideoDescription`
-3. Install dependencies:
+3. Install **only required** dependencies:
 
 ```bash
 cd ComfyUI/custom_nodes/ComfyUI-VideoDescription
-pip install -r requirements.txt
+
+# Install only what ComfyUI doesn't have
+pip install qwen-vl-utils opencv-python
+
+# Optional: For DAM (CUDA only)
+# pip install git+https://github.com/NVlabs/describe-anything.git
 ```
 
 ## Model Download

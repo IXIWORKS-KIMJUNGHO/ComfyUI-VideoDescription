@@ -1,19 +1,37 @@
-# Core dependencies for video processing and vision models
-torch>=2.0.0
-transformers>=4.50.0
-accelerate>=0.20.0
-pillow>=10.0.0
-numpy>=1.24.0
-opencv-python>=4.8.0
+# ============================================================
+# ComfyUI-VideoDescription Dependencies
+# ============================================================
+# IMPORTANT: Install ONLY the packages ComfyUI doesn't already have
+# ComfyUI already provides: torch, transformers, pillow, numpy
+#
+# Installation command:
+#   pip install qwen-vl-utils opencv-python
+#
+# For DAM support (CUDA only):
+#   pip install git+https://github.com/NVlabs/describe-anything.git
+# ============================================================
 
-# Qwen3-VL dependencies
+# Required for Qwen3-VL node
 qwen-vl-utils
 
-# NVIDIA DAM-3B-Video dependencies
-# DAM requires the describe-anything package which provides custom llava_llama model
-# Gradio 5.5+ requires Python 3.10+, but ComfyUI venv uses Python 3.12 so this is fine
-git+https://github.com/NVlabs/describe-anything.git
+# Required for video processing (if not already installed)
+opencv-python
 
-# Optional: For 4-bit quantization (reduces VRAM from ~16GB to ~8GB)
-# Uncomment if you want to use use_4bit=True option
-# bitsandbytes>=0.41.0
+# Optional: NVIDIA DAM-3B-Video support (CUDA ONLY)
+# Uncomment ONLY if you have NVIDIA GPU and want DAM region analysis:
+# git+https://github.com/NVlabs/describe-anything.git
+
+# Optional: 4-bit quantization support (reduces VRAM usage)
+# Uncomment if you want to use use_4bit=True option:
+# bitsandbytes
+
+# ============================================================
+# Dependencies that ComfyUI should already provide:
+# ============================================================
+# DO NOT INSTALL THESE - they will conflict with ComfyUI:
+# - torch (ComfyUI manages this)
+# - transformers (ComfyUI manages this)
+# - accelerate (ComfyUI manages this)
+# - pillow (ComfyUI manages this)
+# - numpy (ComfyUI manages this)
+# ============================================================
