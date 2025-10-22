@@ -1,0 +1,8 @@
+"""
+ComfyUI-VideoDescription
+Video description custom nodes for ComfyUI
+"""
+
+from .video_nodes import NODE_CLASS_MAPPINGS, NODE_DISPLAY_NAME_MAPPINGS
+
+__all__ = ['NODE_CLASS_MAPPINGS', 'NODE_DISPLAY_NAME_MAPPINGS']

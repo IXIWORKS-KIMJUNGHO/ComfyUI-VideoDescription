@@ -1,0 +1,19 @@
+# Core dependencies for video processing and vision models
+torch>=2.0.0
+transformers>=4.50.0
+accelerate>=0.20.0
+pillow>=10.0.0
+numpy>=1.24.0
+opencv-python>=4.8.0
+
+# Qwen3-VL dependencies
+qwen-vl-utils
+
+# NVIDIA DAM-3B-Video dependencies
+# DAM requires the describe-anything package which provides custom llava_llama model
+# Gradio 5.5+ requires Python 3.10+, but ComfyUI venv uses Python 3.12 so this is fine
+git+https://github.com/NVlabs/describe-anything.git
+
+# Optional: For 4-bit quantization (reduces VRAM from ~16GB to ~8GB)
+# Uncomment if you want to use use_4bit=True option
+# bitsandbytes>=0.41.0
