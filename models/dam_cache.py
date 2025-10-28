@@ -124,7 +124,7 @@ class DAMModelCache:
             model = DescribeAnythingModel(
                 model_path=model_path_str,
                 conv_mode="v1",  # Conversation mode
-                prompt_mode="focal_prompt",  # Focal prompt mode for region-based analysis
+                prompt_mode="full+focal_crop",  # Format: crop_mode+crop_mode2
                 **model_kwargs
             )
 

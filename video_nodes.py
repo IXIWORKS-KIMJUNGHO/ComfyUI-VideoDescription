@@ -8,6 +8,9 @@ import sys
 from pathlib import Path
 from typing import Tuple
 
+# ComfyUI imports
+import folder_paths
+
 # Add current directory to path for imports
 current_dir = os.path.dirname(os.path.abspath(__file__))
 if current_dir not in sys.path:
@@ -32,11 +35,25 @@ class VideoDescriptionQwen3VL:
 
     @classmethod
     def _get_comfyui_input_dir(cls) -> Path:
-        """Get ComfyUI input directory path"""
-        current_file = Path(__file__).resolve()
-        custom_nodes_dir = current_file.parent.parent
-        comfyui_root = custom_nodes_dir.parent
-        return comfyui_root / "input"
+        """
+        Get ComfyUI input directory path
+
+        For ComfyUI Desktop App with custom user directory:
+        - Uses folder_paths.get_input_directory() as fallback
+        - If user_directory is custom, assumes input is at same level
+        """
+        input_dir = Path(folder_paths.get_input_directory())
+        user_dir = Path(folder_paths.get_user_directory())
+
+        # Check if user_directory is custom (not in ComfyUI base path)
+        # If so, assume input directory is at the same level as user directory
+        if user_dir.exists() and str(user_dir.parent) != str(input_dir.parent):
+            alternative_input = user_dir.parent / "input"
+            if alternative_input.exists():
+                logger.info(f"Using custom input directory: {alternative_input}")
+                return alternative_input
+
+        return input_dir
 
     @classmethod
     def _get_analysis_prompt(cls, analysis_type: str, custom_prompt: str = "") -> tuple[str, int, float]:
@@ -272,24 +289,24 @@ class VideoDescriptionQwen3VL:
 class VideoDescriptionDAM:
     """
     Video description node using NVIDIA DAM-3B-Video
-    Generates detailed descriptions of specific regions in videos
+    Generates detailed descriptions of entire video content
     """
 
     @classmethod
     def _get_analysis_prompt(cls, analysis_type: str, custom_prompt: str = "") -> tuple[str, int, float]:
-        """Get optimized prompt for DAM region analysis"""
+        """Get optimized prompt for DAM video analysis"""
         if custom_prompt and custom_prompt.strip():
             return (custom_prompt.strip(), 512, 0.2)
 
         analysis_configs = {
             "detailed": {
                 "prompt": (
-                    "Provide a comprehensive and detailed description of the marked region. "
+                    "Provide a comprehensive and detailed description of this video. "
                     "Include information about:\n"
-                    "- Objects and subjects in the region\n"
+                    "- Main subjects and objects in the scene\n"
                     "- Actions and movements\n"
                     "- Visual characteristics (colors, textures, lighting)\n"
-                    "- Interactions with surroundings\n"
+                    "- Setting and environment\n"
                     "- Temporal changes throughout the video"
                 ),
                 "max_tokens": 512,
@@ -297,7 +314,7 @@ class VideoDescriptionDAM:
             },
             "summary": {
                 "prompt": (
-                    "Provide a brief summary of what happens in the marked region "
+                    "Provide a brief summary of what happens in this video "
                     "in 2-3 sentences."
                 ),
                 "max_tokens": 256,
@@ -306,7 +323,7 @@ class VideoDescriptionDAM:
             "action": {
                 "prompt": (
                     "Describe the specific actions and movements occurring in "
-                    "the marked region."
+                    "this video."
                 ),
                 "max_tokens": 384,
                 "temperature": 0.2
@@ -323,10 +340,6 @@ class VideoDescriptionDAM:
                 "video_path": ("STRING", {
                     "default": "",
                     "multiline": False
-                }),
-                "region_points": ("STRING", {
-                    "default": "[[100, 100]]",
-                    "multiline": False,
                 }),
                 "analysis_type": (["detailed", "summary", "action"], {
                     "default": "detailed"
@@ -357,21 +370,16 @@ class VideoDescriptionDAM:
 
     RETURN_TYPES = ("STRING", "STRING")
     RETURN_NAMES = ("description", "info")
-    FUNCTION = "describe_region"
+    FUNCTION = "describe_video"
     CATEGORY = "video"
 
-    def describe_region(self, video_path, region_points, analysis_type,
+    def describe_video(self, video_path, analysis_type,
                        custom_prompt="", max_frames=8, use_4bit=False, temperature=0.2):
         """
-        Generate region-based video description using DAM
+        Generate full video description using DAM (analyzes entire video frame)
 
         Args:
             video_path: Path to video file
-            region_points: JSON string of region coordinates
-                Examples:
-                - Single point: "[[100, 100]]"
-                - Bounding box: "[[100, 100], [300, 300]]"
-                - Polygon: "[[100, 100], [200, 150], [150, 200]]"
             analysis_type: Type of analysis (detailed/summary/action)
             custom_prompt: Optional custom prompt
             max_frames: Maximum frames to process from video
@@ -390,21 +398,6 @@ class VideoDescriptionDAM:
             # Use Qwen3VL's path resolution logic
             resolved_path = VideoDescriptionQwen3VL._resolve_video_path(video_path)
 
-            # Parse region points
-            import json
-            try:
-                points = json.loads(region_points)
-                if not isinstance(points, list) or len(points) == 0:
-                    return ("Error: Invalid region format", "Region must be non-empty list of [x,y] coordinates")
-
-                # Validate each point has 2 coordinates
-                for point in points:
-                    if not isinstance(point, list) or len(point) != 2:
-                        return ("Error: Invalid point format", "Each point must be [x, y]")
-
-            except json.JSONDecodeError as e:
-                return (f"Error: Invalid JSON format: {str(e)}", "Use format: [[x1,y1]] or [[x1,y1],[x2,y2]]")
-
             # Get analysis configuration
             prompt, max_tokens, config_temp = self._get_analysis_prompt(analysis_type, custom_prompt)
             if not custom_prompt:
@@ -416,8 +409,7 @@ class VideoDescriptionDAM:
 
             info_text = (
                 f"Source: {video_source}\n"
-                f"Type: DAM Region Analysis ({analysis_type})\n"
-                f"Region: {region_points}\n"
+                f"Type: DAM Full Video Analysis ({analysis_type})\n"
                 f"Duration: {video_info['duration']:.2f}s\n"
                 f"Resolution: {video_info['width']}x{video_info['height']}\n"
                 f"Max frames: {max_frames}\n"
@@ -426,9 +418,8 @@ class VideoDescriptionDAM:
                 f"4-bit: {use_4bit}"
             )
 
-            logger.info(f"Processing region-based video: {video_source}")
+            logger.info(f"Processing full video: {video_source}")
             logger.info(f"Analysis type: {analysis_type}")
-            logger.info(f"Region points: {points}")
 
             # Load DAM model
             logger.info("Loading DAM-3B-Video model...")
@@ -437,10 +428,10 @@ class VideoDescriptionDAM:
             # Create inference wrapper
             inference = DAMInference(tokenizer, model, image_processor, context_len)
 
-            # Generate description
+            # Generate description (full video, no region masking)
             description = inference.generate_region_description(
                 video_path=resolved_path,
-                region_points=points,
+                region_points=None,  # Full video analysis
                 prompt=prompt,
                 max_new_tokens=max_tokens,
                 temperature=temperature,
@@ -466,5 +457,5 @@ NODE_CLASS_MAPPINGS = {
 # Display name mappings for ComfyUI UI
 NODE_DISPLAY_NAME_MAPPINGS = {
     "VideoDescriptionQwen3VL": "Video Description (Qwen3-VL)",
-    "VideoDescriptionDAM": "Video Description (DAM Region)",
+    "VideoDescriptionDAM": "Video Description (DAM)",
 }

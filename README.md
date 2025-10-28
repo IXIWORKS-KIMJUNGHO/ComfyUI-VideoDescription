@@ -5,7 +5,7 @@ Video description custom nodes for ComfyUI powered by advanced vision-language m
 ## Features
 
 - 🎥 **Full Video Analysis** with Qwen3-VL-8B-Instruct
-- 🎯 **Region-Based Analysis** with NVIDIA DAM-3B-Video
+- 🎯 **Alternative Video Analysis** with NVIDIA DAM-3B-Video (CUDA only)
 - ⚡ Optimized inference with model caching
 - 📊 Multiple analysis types (detailed, summary, keywords/action)
 - 🚀 Smart path resolution for easy video loading
@@ -13,8 +13,33 @@ Video description custom nodes for ComfyUI powered by advanced vision-language m
 
 ## Installation
 
-### Method 1: Git Clone (Recommended)
+### Step 1: Install Base Dependencies
 
+```bash
+cd ComfyUI/custom_nodes/ComfyUI-VideoDescription
+pip install -r requirements.txt
+```
+
+This installs:
+- transformers, tokenizers, accelerate (for Qwen3-VL)
+- qwen-vl-utils (Qwen3-VL helper library)
+
+### Step 2: Install describe-anything (for DAM Node)
+
+⚠️ **IMPORTANT**: describe-anything must be installed separately with `--no-deps` flag to avoid dependency conflicts.
+
+```bash
+pip install --no-deps git+https://github.com/NVlabs/describe-anything.git
+```
+
+**Why `--no-deps`?**
+- describe-anything requires `numpy<2.0.0` and `pydantic<=2.10.6` in its pyproject.toml
+- ComfyUI uses `numpy 2.x` and `pydantic 2.11+`
+- Installing with dependencies would **break your ComfyUI environment**
+- However, describe-anything **works fine** with newer versions (tested and verified)
+- Using `--no-deps` skips the dependency check and preserves your ComfyUI packages
+
+**Complete Installation**:
 ```bash
 cd ComfyUI/custom_nodes
 git clone https://github.com/IXIWORKS-KIMJUNGHO/ComfyUI-VideoDescription.git
@@ -24,28 +49,12 @@ cd ComfyUI-VideoDescription
 # (ComfyUI already has torch, transformers, numpy, etc.)
 pip install qwen-vl-utils opencv-python
 
-# Optional: For DAM support (CUDA only)
-# pip install git+https://github.com/NVlabs/describe-anything.git
+# For DAM support (CUDA only) - use --no-deps flag
+pip install --no-deps git+https://github.com/NVlabs/describe-anything.git
 ```
 
 ⚠️ **IMPORTANT**: Do NOT run `pip install -r requirements.txt` directly!
 This will conflict with ComfyUI's existing packages. Install only the specific packages listed above.
-
-### Method 2: Manual Installation
-
-1. Download this repository
-2. Extract to `ComfyUI/custom_nodes/ComfyUI-VideoDescription`
-3. Install **only required** dependencies:
-
-```bash
-cd ComfyUI/custom_nodes/ComfyUI-VideoDescription
-
-# Install only what ComfyUI doesn't have
-pip install qwen-vl-utils opencv-python
-
-# Optional: For DAM (CUDA only)
-# pip install git+https://github.com/NVlabs/describe-anything.git
-```
 
 ## Model Download
 
@@ -185,11 +194,11 @@ Models will download automatically on first use. However, this will cause delays
 
 ---
 
-### Video Description (DAM Region) - v1.0.0
+### Video Description (DAM) - v1.1.0
 
-**Status**: Fully functional - Region-based video analysis (**CUDA Required**)
+**Status**: Fully functional - Full video analysis (**CUDA Required**)
 
-**Description**: Uses NVIDIA DAM-3B-Video for detailed descriptions of user-specified regions within videos.
+**Description**: Uses NVIDIA DAM-3B-Video for detailed descriptions of entire video content.
 
 ⚠️ **IMPORTANT**: This node requires NVIDIA CUDA GPU. It does NOT work on:
 - Mac (Apple Silicon MPS)
@@ -200,13 +209,12 @@ Use this node only on Linux/Windows systems with NVIDIA CUDA GPUs.
 
 **Required Inputs**:
 - `video_path` (STRING): Path to video file (same as Qwen3-VL)
-- `region_points` (STRING): JSON array of region coordinates
-  - **Single point**: `[[100, 100]]` - Creates circular mask around point
-  - **Bounding box**: `[[x1, y1], [x2, y2]]` - Rectangular region
-  - **Polygon**: `[[x1, y1], [x2, y2], [x3, y3], ...]` - Custom polygon shape
-- `analysis_type` (DROPDOWN): Type of region analysis
-  - **detailed**: Comprehensive region description (512 tokens, temp 0.2)
-  - **summary**: Brief 2-3 sentence summary (256 tokens, temp 0.2)
+  - **Just filename**: `video.mp4` → searches in `ComfyUI/input/`
+  - **Subfolder**: `videos/scene1.mp4` → searches in `ComfyUI/input/videos/`
+  - **Absolute path**: `/full/path/to/video.mp4`
+- `analysis_type` (DROPDOWN): Type of video analysis
+  - **detailed**: Comprehensive full video description (512 tokens, temp 0.2)
+  - **summary**: Brief 2-3 sentence overview (256 tokens, temp 0.2)
   - **action**: Focus on actions/movements (384 tokens, temp 0.2)
 
 **Optional Inputs**:
@@ -216,35 +224,22 @@ Use this node only on Linux/Windows systems with NVIDIA CUDA GPUs.
 - `temperature` (FLOAT): Sampling temperature (default: 0.2)
 
 **Outputs**:
-- `description` (STRING): Region-specific description
+- `description` (STRING): Full video description
 - `info` (STRING): Processing metadata
 
 **How It Works**:
 1. Resolves video path and validates file
-2. Parses region coordinates from JSON
-3. Loads DAM-3B-Video model (cached after first load)
-4. Samples frames uniformly across video
-5. Creates binary mask from region points
-6. Generates localized description focusing on marked region
-7. Returns region-specific analysis
+2. Loads DAM-3B-Video model (cached after first load)
+3. Samples frames uniformly across video
+4. Analyzes entire video frame (full-frame mask)
+5. Generates comprehensive description of video content
+6. Returns detailed analysis
 
 **Use Cases**:
-- Track specific objects/people through video
-- Analyze actions in defined areas
-- Focus on region of interest while ignoring background
-- Multi-region analysis (run node multiple times)
-
-**Example Regions**:
-```json
-// Center point
-[[960, 540]]
-
-// Top-left quadrant
-[[0, 0], [960, 540]]
-
-// Custom polygon (triangle)
-[[100, 100], [500, 100], [300, 400]]
-```
+- Comprehensive video content analysis
+- Scene understanding and description
+- Action and event detection
+- Alternative to Qwen3-VL with different model capabilities
 
 **Performance**:
 - Model size: ~7GB
@@ -264,20 +259,21 @@ Use this node only on Linux/Windows systems with NVIDIA CUDA GPUs.
 - ✅ Performance optimization (removed tensor conversion overhead)
 - ✅ Analysis type presets (detailed/summary/keywords)
 
-### Phase 2: DAM Region Analysis ✅
+### Phase 2: DAM Full Video Analysis ✅
 - ✅ DAM model loader with singleton caching
-- ✅ Region-based inference wrapper
+- ✅ Full video inference wrapper
 - ✅ ComfyUI node integration
-- ✅ Region mask generation (point/box/polygon)
+- ✅ Automatic full-frame mask generation
 - ✅ Multi-frame video processing
 - ✅ Analysis type presets (detailed/summary/action)
+- ✅ Simplified node interface (removed region_points parameter)
 
 ### Phase 3: Advanced Features (Planned)
 - [ ] Dual-model combination node (Qwen3-VL + DAM)
-- [ ] SAM2 integration for automatic region detection
-- [ ] Batch processing support
-- [ ] Time-based region tracking
-- [ ] Performance optimization
+- [ ] Batch processing support for multiple videos
+- [ ] Video timestamp-based analysis
+- [ ] Advanced prompt templates library
+- [ ] Performance optimization and caching improvements
 
 ### Phase 4: Production Ready (Future)
 - [ ] Comprehensive testing
@@ -337,6 +333,16 @@ limitations under the License.
 - [NVIDIA DAM](https://huggingface.co/nvidia/DAM-3B-Video) - Description Anything Model
 
 ## Changelog
+
+### v1.1.1 (2025-10-28)
+- ✅ DAM Node: Removed region_points parameter for simplified interface
+- ✅ DAM Node: Changed to full video analysis (automatic full-frame mask)
+- ✅ DAM Node: Updated prompts from "marked region" to "this video"
+- ✅ Updated installation guide with --no-deps explanation for describe-anything
+- ✅ Fixed dependency conflicts between describe-anything and ComfyUI
+- ✅ Fixed DAM model parameter names and prompt format (<image> tag)
+- ✅ Fixed video path resolution for ComfyUI Desktop App custom directories
+- ✅ Node display name updated: "DAM Region" → "DAM"
 
 ### v1.2.0 (2025-10-22)
 - ✅ Analysis type presets: detailed / summary / keywords

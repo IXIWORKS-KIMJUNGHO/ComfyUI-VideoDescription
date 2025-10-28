@@ -8,7 +8,7 @@
 #   pip install qwen-vl-utils opencv-python
 #
 # For DAM support (CUDA only):
-#   pip install git+https://github.com/NVlabs/describe-anything.git
+#   pip install --no-deps git+https://github.com/NVlabs/describe-anything.git
 # ============================================================
 
 # Required for Qwen3-VL node
@@ -18,8 +18,8 @@ qwen-vl-utils
 opencv-python
 
 # Optional: NVIDIA DAM-3B-Video support (CUDA ONLY)
-# Uncomment ONLY if you have NVIDIA GPU and want DAM region analysis:
-# git+https://github.com/NVlabs/describe-anything.git
+# Must be installed separately with --no-deps flag
+# See README.md for detailed installation instructions
 
 # Optional: 4-bit quantization support (reduces VRAM usage)
 # Uncomment if you want to use use_4bit=True option:
@@ -34,4 +34,5 @@ opencv-python
 # - accelerate (ComfyUI manages this)
 # - pillow (ComfyUI manages this)
 # - numpy (ComfyUI manages this)
+# - tokenizers (managed by transformers)
 # ============================================================

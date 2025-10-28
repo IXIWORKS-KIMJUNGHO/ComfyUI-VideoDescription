@@ -112,8 +112,8 @@ class DAMInference:
     def generate_region_description(
         self,
         video_path: Union[str, Path],
-        region_points: List[List[int]],
-        prompt: str = "Describe what you see in the marked region.",
+        region_points: Optional[List[List[int]]] = None,
+        prompt: str = "Describe what you see in the video.",
         max_new_tokens: int = 512,
         temperature: float = 0.2,
         top_p: float = 0.9,
@@ -121,11 +121,12 @@ class DAMInference:
         max_frames: int = 8
     ) -> str:
         """
-        Generate description for specified region in video
+        Generate description for video (full frame or specified region)
 
         Args:
             video_path: Path to video file
-            region_points: List of [x, y] coordinates marking region
+            region_points: Optional list of [x, y] coordinates marking region
+                          - None: Analyze entire video frame (full-frame mask)
                           - Single point: [[x, y]]
                           - Bounding box: [[x1, y1], [x2, y2]]
                           - Polygon: [[x1, y1], [x2, y2], [x3, y3], ...]
@@ -137,10 +138,12 @@ class DAMInference:
             max_frames: Maximum frames to process from video
 
         Returns:
-            Generated region description
+            Generated video description
         """
-        logger.info(f"Generating region description for: {Path(video_path).name}")
-        logger.info(f"Region points: {region_points}")
+        analysis_type = "full video" if region_points is None else "region"
+        logger.info(f"Generating {analysis_type} description for: {Path(video_path).name}")
+        if region_points:
+            logger.info(f"Region points: {region_points}")
         logger.info(f"Max frames: {max_frames}")
 
         try:
@@ -148,7 +151,13 @@ class DAMInference:
             frames = self._load_video_frames(video_path, max_frames=max_frames)
 
             # Create region mask from first frame
-            mask = self._create_region_mask(frames[0].shape, region_points)
+            # If region_points is None, create full-frame mask (all white)
+            if region_points is None:
+                height, width = frames[0].shape[:2]
+                mask = np.ones((height, width), dtype=np.uint8) * 255
+                logger.info(f"Using full-frame mask: {width}x{height}")
+            else:
+                mask = self._create_region_mask(frames[0].shape, region_points)
 
             # DescribeAnythingModel uses get_description method
             # It expects: image/video path or frames, mask, and prompt
@@ -162,12 +171,22 @@ class DAMInference:
             first_frame_rgb = frames[0]
             pil_image = Image.fromarray(first_frame_rgb)
 
+            # Convert mask to PIL Image
+            pil_mask = Image.fromarray(mask)
+
+            # DAM expects query to contain <image> tag
+            # The tag is replaced internally with image tokens
+            if "<image>" not in prompt:
+                query_with_image = f"<image>\n{prompt}"
+            else:
+                query_with_image = prompt
+
             # Call DAM's get_description method
-            # This method handles the entire inference pipeline internally
+            # Signature: get_description(self, image_pil, mask_pil, query, ...)
             description = self.model.get_description(
-                image=pil_image,
-                mask=mask,
-                prompt=prompt,
+                image_pil=pil_image,
+                mask_pil=pil_mask,
+                query=query_with_image,
                 temperature=temperature,
                 top_p=top_p,
                 num_beams=num_beams,
