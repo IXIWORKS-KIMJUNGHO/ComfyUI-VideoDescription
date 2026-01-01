@@ -96,48 +96,45 @@ class BuildCharacterPromptNode:
 
     def build_character_prompt(self, zipped_character):
         character_prompts = []
-        logger.info(f"[StoryBoard] BuildCharacterPromptNode: Processing {len(zipped_character)} character sets")
-        logger.info(f"[StoryBoard] BuildCharacterPromptNode: zipped_character type: {type(zipped_character)}")
-        logger.info(f"[StoryBoard] BuildCharacterPromptNode: zipped_character content: {zipped_character}")
 
-        for idx, char_data in enumerate(zipped_character):
-            logger.info(f"[StoryBoard] BuildCharacterPromptNode: char_data[{idx}] type: {type(char_data)}, value: {char_data}")
-            if isinstance(char_data, tuple) and len(char_data) >= 6:
-                main_char_en_name = char_data[1]
-                sub_char_en_name = char_data[3]
-                main_char_desc = char_data[4]
-                sub_char_desc = char_data[5]
+        # ComfyUI passes each tuple individually when OUTPUT_IS_LIST is True
+        # So zipped_character is a single tuple, not a list of tuples
+        if isinstance(zipped_character, tuple) and len(zipped_character) >= 6 and isinstance(zipped_character[0], str):
+            # Single character data tuple
+            char_data = zipped_character
+            main_char_en_name = char_data[1]
+            sub_char_en_name = char_data[3]
+            main_char_desc = char_data[4]
+            sub_char_desc = char_data[5]
 
-                # Build natural language character descriptions
-                char_descriptions = []
+            # Build natural language character descriptions
+            char_descriptions = []
 
-                if main_char_en_name and main_char_desc:
-                    # Convert description to natural sentence
-                    desc = main_char_desc.lower()
-                    if desc.startswith("a ") or desc.startswith("an "):
-                        char_descriptions.append(f"{main_char_en_name} is {desc}")
-                    elif desc.startswith("female") or desc.startswith("male"):
-                        char_descriptions.append(f"{main_char_en_name} is a {desc}")
-                    else:
-                        char_descriptions.append(f"{main_char_en_name} is {desc}")
+            if main_char_en_name and main_char_desc:
+                desc = main_char_desc.lower()
+                if desc.startswith("a ") or desc.startswith("an "):
+                    char_descriptions.append(f"{main_char_en_name} is {desc}")
+                elif desc.startswith("female") or desc.startswith("male"):
+                    char_descriptions.append(f"{main_char_en_name} is a {desc}")
+                else:
+                    char_descriptions.append(f"{main_char_en_name} is {desc}")
 
-                if sub_char_en_name and sub_char_desc:
-                    # Convert description to natural sentence
-                    desc = sub_char_desc.lower()
-                    if desc.startswith("a ") or desc.startswith("an "):
-                        char_descriptions.append(f"{sub_char_en_name} is {desc}")
-                    elif desc.startswith("humanoid") or desc.startswith("robot"):
-                        char_descriptions.append(f"{sub_char_en_name} is a {desc}")
-                    else:
-                        char_descriptions.append(f"{sub_char_en_name} is {desc}")
+            if sub_char_en_name and sub_char_desc:
+                desc = sub_char_desc.lower()
+                if desc.startswith("a ") or desc.startswith("an "):
+                    char_descriptions.append(f"{sub_char_en_name} is {desc}")
+                elif desc.startswith("humanoid") or desc.startswith("robot"):
+                    char_descriptions.append(f"{sub_char_en_name} is a {desc}")
+                else:
+                    char_descriptions.append(f"{sub_char_en_name} is {desc}")
 
-                # Join character descriptions
-                character_prompt = ". ".join(char_descriptions) + "." if char_descriptions else ""
-                character_prompts.append(character_prompt)
+            character_prompt = ". ".join(char_descriptions) + "." if char_descriptions else ""
+            logger.info(f"[StoryBoard] BuildCharacterPromptNode: Built prompt: {character_prompt}")
+            return (character_prompt,)
 
-                logger.info(f"[StoryBoard] BuildCharacterPromptNode: Built character prompt {idx+1}")
-
-        return (character_prompts,)
+        # Fallback: empty result
+        logger.warning(f"[StoryBoard] BuildCharacterPromptNode: Invalid input format")
+        return ("",)
 
 
 class BuildPromptNode:
