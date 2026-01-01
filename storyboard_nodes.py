@@ -92,7 +92,7 @@ class BuildCharacterPromptNode:
     RETURN_NAMES = ("character_prompt",)
     FUNCTION = "build_character_prompt"
     CATEGORY = "StoryBoard"
-    OUTPUT_IS_LIST = (True,)
+    OUTPUT_IS_LIST = (False,)
 
     def build_character_prompt(self, zipped_character):
         character_prompts = []
