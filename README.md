@@ -1,14 +1,21 @@
 # ComfyUI-VideoDescription
 
-Video description custom nodes for ComfyUI powered by advanced vision-language models.
+Video description and storyboard custom nodes for ComfyUI powered by advanced vision-language models.
 
 ## Features
 
+### Video Category
 - 🎥 **Full Video Analysis** with Qwen3-VL-8B-Instruct
 - 🎯 **Alternative Video Analysis** with NVIDIA DAM-3B-Video (CUDA only)
 - ⚡ Optimized inference with model caching
 - 📊 Multiple analysis types (detailed, summary, keywords/action)
 - 🚀 Smart path resolution for easy video loading
+
+### StoryBoard Category
+- 📋 **JSON Storyboard Parser** for structured prompt generation
+- 🎬 **Scene Prompt Builder** with camera, composition, and description
+- 👤 **Character Prompt Builder** for consistent character descriptions
+- 🔗 **String Merge** for combining prompts
 - 🔧 Easy integration with ComfyUI workflows
 
 ## Installation
@@ -248,6 +255,91 @@ Use this node only on Linux/Windows systems with NVIDIA CUDA GPUs.
 
 ---
 
+## StoryBoard Nodes
+
+### JSON Parser (StoryBoard)
+
+Parses JSON storyboard files and extracts scene/character data.
+
+**Inputs**:
+- `file_name` (STRING): JSON filename in `ComfyUI/input/prompt/` directory
+
+**Outputs**:
+- `zipped_prompt` (ZIPPED_PROMPT): Scene data tuples (description, time_weather, camera_info, composition)
+- `zipped_character` (ZIPPED_PROMPT): Character data tuples
+- `count` (INT): Number of scenes
+
+**JSON Format**:
+```json
+{
+  "scene": {
+    "1": {
+      "mainCharacter": { "koName": "", "enName": "", "description": "" },
+      "subCharacter": { "koName": "", "enName": "", "description": "" },
+      "time": { "ko": "", "en": "" },
+      "weather": { "ko": "", "en": "" },
+      "cameraShot": { "ko": "", "en": "" },
+      "cameraAngle": { "ko": "", "en": "" },
+      "description": { "ko": "", "en": "" },
+      "composition": { "ko": "", "en": "" }
+    }
+  }
+}
+```
+
+---
+
+### Build Prompt (StoryBoard)
+
+Combines scene data into a single prompt string.
+
+**Inputs**:
+- `zipped_prompt` (ZIPPED_PROMPT): From JsonParserNode
+
+**Outputs**:
+- `prompt` (STRING): Combined scene prompt
+
+---
+
+### Build Character Prompt (StoryBoard)
+
+Generates natural language character descriptions.
+
+**Inputs**:
+- `zipped_character` (ZIPPED_PROMPT): From JsonParserNode
+
+**Outputs**:
+- `character_prompt` (STRING): Character description (e.g., "Somyung is a female teenager...")
+
+---
+
+### Select Index (StoryBoard)
+
+Selects a specific scene by index.
+
+**Inputs**:
+- `zipped_prompt` (ZIPPED_PROMPT): From JsonParserNode
+- `index` (INT): Scene index (0-based)
+
+**Outputs**:
+- `selected_prompt` (ZIPPED_PROMPT): Single scene data
+
+---
+
+### Merge Strings (StoryBoard)
+
+Merges two string arrays with a separator.
+
+**Inputs**:
+- `strings_a` (STRING): First string array
+- `strings_b` (STRING): Second string array
+- `separator` (STRING): Optional separator (default: " ")
+
+**Outputs**:
+- `merged_strings` (STRING): Merged result
+
+---
+
 ## Roadmap
 
 ### Phase 1: Qwen3-VL Integration ✅
@@ -333,6 +425,16 @@ limitations under the License.
 - [NVIDIA DAM](https://huggingface.co/nvidia/DAM-3B-Video) - Description Anything Model
 
 ## Changelog
+
+### v1.2.0 (2025-12-31)
+- ✅ Added StoryBoard category with 5 new nodes:
+  - JSON Parser: Parse storyboard JSON files
+  - Build Prompt: Generate scene prompts
+  - Build Character Prompt: Generate character descriptions
+  - Select Index: Select specific scene
+  - Merge Strings: Combine prompt strings
+- ✅ Support for new camelCase JSON format
+- ✅ Integrated Video and StoryBoard categories in single package
 
 ### v1.1.1 (2025-10-28)
 - ✅ DAM Node: Removed region_points parameter for simplified interface
