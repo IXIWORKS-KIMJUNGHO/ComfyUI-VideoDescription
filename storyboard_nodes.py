@@ -97,8 +97,11 @@ class BuildCharacterPromptNode:
     def build_character_prompt(self, zipped_character):
         character_prompts = []
         logger.info(f"[StoryBoard] BuildCharacterPromptNode: Processing {len(zipped_character)} character sets")
+        logger.info(f"[StoryBoard] BuildCharacterPromptNode: zipped_character type: {type(zipped_character)}")
+        logger.info(f"[StoryBoard] BuildCharacterPromptNode: zipped_character content: {zipped_character}")
 
         for idx, char_data in enumerate(zipped_character):
+            logger.info(f"[StoryBoard] BuildCharacterPromptNode: char_data[{idx}] type: {type(char_data)}, value: {char_data}")
             if isinstance(char_data, tuple) and len(char_data) >= 6:
                 main_char_en_name = char_data[1]
                 sub_char_en_name = char_data[3]
