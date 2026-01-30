@@ -3,23 +3,27 @@ import { app } from "../../scripts/app.js";
 // ComfyUI node modes
 const MODE_ALWAYS = 0;
 const MODE_MUTE = 2;
+const MODE_BYPASS = 4;
 
 function setUpstreamMode(node, bypass) {
     if (!node.graph) return;
 
-    // Mute/unmute the bypass node itself to cut data flow downstream
-    node.mode = bypass ? MODE_MUTE : MODE_ALWAYS;
-
-    // Mute/unmute the upstream source node
     const link = node.inputs[0].link;
-    if (link != null) {
-        const linkInfo = node.graph.links[link];
-        if (linkInfo) {
-            const sourceNode = node.graph.getNodeById(linkInfo.origin_id);
-            if (sourceNode) {
-                sourceNode.mode = bypass ? MODE_MUTE : MODE_ALWAYS;
-            }
+    if (link == null) return;
+    const linkInfo = node.graph.links[link];
+    if (!linkInfo) return;
+    const sourceNode = node.graph.getNodeById(linkInfo.origin_id);
+    if (!sourceNode) return;
+
+    if (bypass) {
+        // Only bypass processing nodes (nodes that have inputs).
+        // Source nodes (Load Image etc.) have no inputs so bypass
+        // would produce no output → error. Leave them running.
+        if (sourceNode.inputs && sourceNode.inputs.length > 0) {
+            sourceNode.mode = MODE_BYPASS;
         }
+    } else {
+        sourceNode.mode = MODE_ALWAYS;
     }
 
     node.graph.setDirtyCanvas(true, true);
