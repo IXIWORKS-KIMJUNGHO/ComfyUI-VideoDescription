@@ -116,10 +116,21 @@ app.registerExtension({
             nodeType.prototype.onConfigure = function (info) {
                 if (origConfigure) origConfigure.apply(this, arguments);
                 this.isVirtualNode = true;
-                // Restore title from widget value
+
+                // Force exactly 1 input, 1 output (prevent accumulation)
+                const savedType = (this.inputs.length > 0) ? this.inputs[0].type : "*";
+                const savedLink = (this.inputs.length > 0) ? this.inputs[0].link : null;
+                this.inputs = [{ name: savedType, type: savedType, link: savedLink }];
+
+                const outType = (this.outputs.length > 0) ? this.outputs[0].type : "*";
+                const outLinks = (this.outputs.length > 0) ? this.outputs[0].links : null;
+                this.outputs = [{ name: outType, type: outType, links: outLinks }];
+
                 if (this.widgets && this.widgets[0] && this.widgets[0].value) {
                     this.title = "Set: " + this.widgets[0].value;
+                    applyColorByType(this, savedType);
                 }
+                this.setSize(this.computeSize());
             };
         }
 
@@ -207,9 +218,18 @@ app.registerExtension({
             nodeType.prototype.onConfigure = function (info) {
                 if (origConfigure) origConfigure.apply(this, arguments);
                 this.isVirtualNode = true;
+
+                // Force exactly 0 inputs, 1 output (prevent accumulation)
+                this.inputs = [];
+
+                const outType = (this.outputs.length > 0) ? this.outputs[0].type : "*";
+                const outLinks = (this.outputs.length > 0) ? this.outputs[0].links : null;
+                this.outputs = [{ name: outType, type: outType, links: outLinks }];
+
                 if (this.widgets && this.widgets[0] && this.widgets[0].value) {
                     this._onRename();
                 }
+                this.setSize(this.computeSize());
             };
         }
     }
