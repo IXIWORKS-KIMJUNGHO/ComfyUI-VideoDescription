@@ -117,18 +117,16 @@ app.registerExtension({
                 if (origConfigure) origConfigure.apply(this, arguments);
                 this.isVirtualNode = true;
 
-                // Force exactly 1 input, 1 output (prevent accumulation)
-                const savedType = (this.inputs.length > 0) ? this.inputs[0].type : "*";
-                const savedLink = (this.inputs.length > 0) ? this.inputs[0].link : null;
-                this.inputs = [{ name: savedType, type: savedType, link: savedLink }];
+                // Trim to exactly 1 input, 1 output using API (preserves link references)
+                while (this.inputs.length > 1) this.removeInput(this.inputs.length - 1);
+                if (this.inputs.length === 0) this.addInput("*", "*");
 
-                const outType = (this.outputs.length > 0) ? this.outputs[0].type : "*";
-                const outLinks = (this.outputs.length > 0) ? this.outputs[0].links : null;
-                this.outputs = [{ name: outType, type: outType, links: outLinks }];
+                while (this.outputs.length > 1) this.removeOutput(this.outputs.length - 1);
+                if (this.outputs.length === 0) this.addOutput("*", "*");
 
                 if (this.widgets && this.widgets[0] && this.widgets[0].value) {
                     this.title = "Set: " + this.widgets[0].value;
-                    applyColorByType(this, savedType);
+                    applyColorByType(this, this.inputs[0].type);
                 }
                 this.setSize(this.computeSize());
             };
@@ -219,12 +217,11 @@ app.registerExtension({
                 if (origConfigure) origConfigure.apply(this, arguments);
                 this.isVirtualNode = true;
 
-                // Force exactly 0 inputs, 1 output (prevent accumulation)
-                this.inputs = [];
+                // Trim to exactly 0 inputs, 1 output using API (preserves link references)
+                while (this.inputs.length > 0) this.removeInput(this.inputs.length - 1);
 
-                const outType = (this.outputs.length > 0) ? this.outputs[0].type : "*";
-                const outLinks = (this.outputs.length > 0) ? this.outputs[0].links : null;
-                this.outputs = [{ name: outType, type: outType, links: outLinks }];
+                while (this.outputs.length > 1) this.removeOutput(this.outputs.length - 1);
+                if (this.outputs.length === 0) this.addOutput("*", "*");
 
                 if (this.widgets && this.widgets[0] && this.widgets[0].value) {
                     this._onRename();
