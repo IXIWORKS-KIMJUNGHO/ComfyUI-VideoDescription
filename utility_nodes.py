@@ -138,6 +138,35 @@ class IXIGetNode:
         return (None,)
 
 
+class SaveTextNode:
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "text": ("STRING", {"forceInput": True}),
+                "filename": ("STRING", {"default": "output.txt"}),
+            }
+        }
+
+    RETURN_TYPES = ()
+    FUNCTION = "save"
+    CATEGORY = "IXIWORKS/Utils"
+    OUTPUT_NODE = True
+
+    def save(self, text, filename):
+        import os
+        import folder_paths
+
+        output_dir = folder_paths.get_output_directory()
+        file_path = os.path.join(output_dir, filename)
+        os.makedirs(os.path.dirname(file_path), exist_ok=True)
+
+        with open(file_path, "w", encoding="utf-8") as f:
+            f.write(text)
+
+        return {}
+
+
 NODE_CLASS_MAPPINGS = {
     "SwitchBoolean": SwitchBooleanNode,
     "StringToList": StringToListNode,
@@ -145,6 +174,7 @@ NODE_CLASS_MAPPINGS = {
     "SwitchCase": SwitchCaseNode,
     "IXISetNode": IXISetNode,
     "IXIGetNode": IXIGetNode,
+    "SaveText": SaveTextNode,
 }
 
 NODE_DISPLAY_NAME_MAPPINGS = {
@@ -154,4 +184,5 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "SwitchCase": "Switch Case (Utils)",
     "IXISetNode": "Set (Utils)",
     "IXIGetNode": "Get (Utils)",
+    "SaveText": "Save Text (Utils)",
 }

@@ -6,9 +6,6 @@
 #
 # Installation command:
 #   pip install qwen-vl-utils opencv-python-headless
-#
-# For DAM support (CUDA only):
-#   pip install --no-deps git+https://github.com/NVlabs/describe-anything.git
 # ============================================================
 
 # Required for Qwen3-VL node
@@ -17,10 +14,6 @@ qwen-vl-utils
 # Required for video processing (if not already installed)
 # NOTE: Must use headless version to avoid conflict with ComfyUI's opencv-python-headless
 opencv-python-headless
-
-# Optional: NVIDIA DAM-3B-Video support (CUDA ONLY)
-# Must be installed separately with --no-deps flag
-# See README.md for detailed installation instructions
 
 # Optional: 4-bit quantization support (reduces VRAM usage)
 # Uncomment if you want to use use_4bit=True option:
