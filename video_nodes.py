@@ -304,5 +304,5 @@ NODE_CLASS_MAPPINGS = {
 
 # Display name mappings for ComfyUI UI
 NODE_DISPLAY_NAME_MAPPINGS = {
-    "VideoDescriptionQwen3VL": "IXIWORKS - Video Description (Qwen3-VL)",
+    "VideoDescriptionQwen3VL": "Video Description (Qwen3-VL)",
 }

@@ -62,12 +62,36 @@ class StringToListNode:
         return (result,)
 
 
+class JoinStringsNode:
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "string_a": ("STRING", {"default": "", "multiline": True}),
+                "string_b": ("STRING", {"default": "", "multiline": True}),
+            },
+            "optional": {
+                "separator": ("STRING", {"default": " "}),
+            }
+        }
+
+    RETURN_TYPES = ("STRING",)
+    RETURN_NAMES = ("joined_string",)
+    FUNCTION = "join"
+    CATEGORY = "IXIWORKS/Utils"
+
+    def join(self, string_a, string_b, separator=" "):
+        return (f"{string_a}{separator}{string_b}",)
+
+
 NODE_CLASS_MAPPINGS = {
     "SwitchBoolean": SwitchBooleanNode,
     "StringToList": StringToListNode,
+    "JoinStrings": JoinStringsNode,
 }
 
 NODE_DISPLAY_NAME_MAPPINGS = {
-    "SwitchBoolean": "IXIWORKS - Switch (Utils)",
-    "StringToList": "IXIWORKS - String to List (Utils)",
+    "SwitchBoolean": "Switch (Utils)",
+    "StringToList": "String to List (Utils)",
+    "JoinStrings": "Join Strings (Utils)",
 }

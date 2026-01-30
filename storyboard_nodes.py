@@ -269,9 +269,9 @@ NODE_CLASS_MAPPINGS = {
 
 # Display name mappings for ComfyUI UI
 NODE_DISPLAY_NAME_MAPPINGS = {
-    "JsonParserNode": "IXIWORKS - JSON Parser (StoryBoard)",
-    "BuildPromptNode": "IXIWORKS - Build Prompt (StoryBoard)",
-    "BuildCharacterPromptNode": "IXIWORKS - Build Character Prompt (StoryBoard)",
-    "SelectIndexNode": "IXIWORKS - Select Index (StoryBoard)",
-    "MergeStringsNode": "IXIWORKS - Merge Strings (StoryBoard)",
+    "JsonParserNode": "JSON Parser (StoryBoard)",
+    "BuildPromptNode": "Build Prompt (StoryBoard)",
+    "BuildCharacterPromptNode": "Build Character Prompt (StoryBoard)",
+    "SelectIndexNode": "Select Index (StoryBoard)",
+    "MergeStringsNode": "Merge Strings (StoryBoard)",
 }
