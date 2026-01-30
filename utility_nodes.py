@@ -177,8 +177,10 @@ class BypassNode:
     def INPUT_TYPES(cls):
         return {
             "required": {
-                "input": (ANY,),
                 "bypass": ("BOOLEAN", {"default": False}),
+            },
+            "optional": {
+                "input": (ANY,),
             }
         }
 
@@ -187,8 +189,8 @@ class BypassNode:
     FUNCTION = "execute"
     CATEGORY = "IXIWORKS/Utils"
 
-    def execute(self, input, bypass):
-        return (input,)
+    def execute(self, bypass, **kwargs):
+        return (kwargs.get("input", None),)
 
 
 NODE_CLASS_MAPPINGS = {

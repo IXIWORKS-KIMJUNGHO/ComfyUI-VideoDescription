@@ -2,9 +2,9 @@ import { app } from "../../scripts/app.js";
 
 // ComfyUI node modes
 const MODE_ALWAYS = 0;
-const MODE_BYPASS = 4;
+const MODE_MUTE = 2;
 
-function setUpstreamBypass(node, bypass) {
+function setUpstreamMode(node, bypass) {
     if (!node.graph) return;
     const link = node.inputs[0].link;
     if (link == null) return;
@@ -12,7 +12,7 @@ function setUpstreamBypass(node, bypass) {
     if (!linkInfo) return;
     const sourceNode = node.graph.getNodeById(linkInfo.origin_id);
     if (!sourceNode) return;
-    sourceNode.mode = bypass ? MODE_BYPASS : MODE_ALWAYS;
+    sourceNode.mode = bypass ? MODE_MUTE : MODE_ALWAYS;
     node.graph.setDirtyCanvas(true, true);
 }
 
@@ -32,7 +32,7 @@ app.registerExtension({
             const self = this;
             const origCallback = bypassWidget.callback;
             bypassWidget.callback = function (value) {
-                setUpstreamBypass(self, value);
+                setUpstreamMode(self, value);
                 if (origCallback) origCallback.call(this, value);
             };
         };
@@ -47,7 +47,7 @@ app.registerExtension({
             requestAnimationFrame(() => {
                 const bypassWidget = self.widgets && self.widgets.find((w) => w.name === "bypass");
                 if (bypassWidget && bypassWidget.value) {
-                    setUpstreamBypass(self, bypassWidget.value);
+                    setUpstreamMode(self, bypassWidget.value);
                 }
             });
         };
@@ -63,13 +63,13 @@ app.registerExtension({
             if (slotType === 1 && slot === 0) {
                 if (isConnect && bypassWidget.value) {
                     // New connection + bypass is on → set source to bypass
-                    setUpstreamBypass(this, true);
+                    setUpstreamMode(this, true);
                 }
                 if (!isConnect && linkInfo) {
                     // Disconnected → restore source node to normal
                     const sourceNode = this.graph.getNodeById(linkInfo.origin_id);
                     if (sourceNode) {
-                        sourceNode.mode = MODE_ALWAYS;
+                        sourceNode.mode = MODE_ALWAYS;  // restore to normal
                         this.graph.setDirtyCanvas(true, true);
                     }
                 }
