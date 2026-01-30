@@ -1,22 +1,25 @@
-# ComfyUI-VideoDescription
+# IXIWORKS Tools
 
-Video description and storyboard custom nodes for ComfyUI powered by advanced vision-language models.
+Video description, storyboard, and utility custom nodes for ComfyUI.
 
 ## Features
 
 ### Video Category
-- 🎥 **Full Video Analysis** with Qwen3-VL-8B-Instruct
-- 🎯 **Alternative Video Analysis** with NVIDIA DAM-3B-Video (CUDA only)
-- ⚡ Optimized inference with model caching
-- 📊 Multiple analysis types (detailed, summary, keywords/action)
-- 🚀 Smart path resolution for easy video loading
+- **Video Description (Qwen3-VL)**: Full video analysis with Qwen3-VL-8B-Instruct
 
 ### StoryBoard Category
-- 📋 **JSON Storyboard Parser** for structured prompt generation
-- 🎬 **Scene Prompt Builder** with camera, composition, and description
-- 👤 **Character Prompt Builder** for consistent character descriptions
-- 🔗 **String Merge** for combining prompts
-- 🔧 Easy integration with ComfyUI workflows
+- **JSON Parser**: Parse storyboard JSON files into scene/character data
+- **Build Prompt**: Combine scene data into prompts
+- **Build Character Prompt**: Generate character descriptions
+- **Select Index**: Select specific scene by index
+- **Merge Strings**: Combine string arrays with separator
+
+### Utils Category
+- **Switch**: Boolean switch between two inputs
+- **Switch Case**: Select one of N inputs by index (2~8 inputs)
+- **String to List**: Convert multiple string inputs to a list for batch processing
+- **Join Strings**: Concatenate two strings with configurable separator
+- **Set / Get**: Virtual nodes for wire-free connections (frontend only)
 
 ## Installation
 
@@ -31,38 +34,6 @@ This installs:
 - transformers, tokenizers, accelerate (for Qwen3-VL)
 - qwen-vl-utils (Qwen3-VL helper library)
 
-### Step 2: Install describe-anything (for DAM Node)
-
-⚠️ **IMPORTANT**: describe-anything must be installed separately with `--no-deps` flag to avoid dependency conflicts.
-
-```bash
-pip install --no-deps git+https://github.com/NVlabs/describe-anything.git
-```
-
-**Why `--no-deps`?**
-- describe-anything requires `numpy<2.0.0` and `pydantic<=2.10.6` in its pyproject.toml
-- ComfyUI uses `numpy 2.x` and `pydantic 2.11+`
-- Installing with dependencies would **break your ComfyUI environment**
-- However, describe-anything **works fine** with newer versions (tested and verified)
-- Using `--no-deps` skips the dependency check and preserves your ComfyUI packages
-
-**Complete Installation**:
-```bash
-cd ComfyUI/custom_nodes
-git clone https://github.com/IXIWORKS-KIMJUNGHO/ComfyUI-VideoDescription.git
-cd ComfyUI-VideoDescription
-
-# Install ONLY the required packages
-# (ComfyUI already has torch, transformers, numpy, etc.)
-pip install qwen-vl-utils opencv-python
-
-# For DAM support (CUDA only) - use --no-deps flag
-pip install --no-deps git+https://github.com/NVlabs/describe-anything.git
-```
-
-⚠️ **IMPORTANT**: Do NOT run `pip install -r requirements.txt` directly!
-This will conflict with ComfyUI's existing packages. Install only the specific packages listed above.
-
 ## Model Download
 
 **Important**: You need to download the models before using these nodes.
@@ -72,8 +43,7 @@ This will conflict with ComfyUI's existing packages. Install only the specific p
 Models will be downloaded to:
 ```
 ComfyUI/models/video_description/
-├── Qwen3-VL-8B-Instruct/    # Full video analysis model
-└── DAM-3B-Video/             # Region-based analysis model
+└── Qwen3-VL-8B-Instruct/    # Full video analysis model
 ```
 
 This follows ComfyUI's standard model organization structure.
@@ -93,7 +63,6 @@ This will download models to `ComfyUI/models/video_description/`
 
 Models will download automatically on first use. However, this will cause delays:
 - **Qwen3-VL**: 10-30 minute delay (16GB download)
-- **DAM**: 5-15 minute delay (7GB download)
 
 **Download behavior**:
 1. Node checks model directory
@@ -103,20 +72,13 @@ Models will download automatically on first use. However, this will cause delays
 ### Disk Space Requirements
 
 - **Qwen3-VL-8B (FP16)**: ~16GB
-- **DAM-3B-Video (FP16)**: ~7GB (**CUDA only**)
-- **With 4-bit quantization**: ~12GB total
-- **Recommended free space**: 30GB+ (for both models)
+- **With 4-bit quantization**: ~8GB
+- **Recommended free space**: 20GB+
 
 ### Hardware Requirements
 
-**Qwen3-VL Node:**
 - ✅ Works on: NVIDIA CUDA, Apple Silicon (MPS), CPU
 - Recommended: 16GB+ RAM, GPU with 8GB+ VRAM
-
-**DAM Node:**
-- ⚠️ **CUDA ONLY**: Requires NVIDIA GPU with CUDA support
-- ❌ Does NOT work on: Mac (MPS), CPU-only, AMD GPUs
-- Recommended: NVIDIA GPU with 8GB+ VRAM, Linux/Windows OS
 
 ## Quick Start
 
@@ -198,60 +160,6 @@ Models will download automatically on first use. However, this will cause delays
 - 3-second video: ~14 seconds (model loading + inference)
 - 30-second video: ~130 seconds
 - First run includes model loading (5-6 seconds), subsequent runs reuse cached model
-
----
-
-### Video Description (DAM) - v1.1.0
-
-**Status**: Fully functional - Full video analysis (**CUDA Required**)
-
-**Description**: Uses NVIDIA DAM-3B-Video for detailed descriptions of entire video content.
-
-⚠️ **IMPORTANT**: This node requires NVIDIA CUDA GPU. It does NOT work on:
-- Mac (Apple Silicon MPS)
-- CPU-only systems
-- AMD GPUs
-
-Use this node only on Linux/Windows systems with NVIDIA CUDA GPUs.
-
-**Required Inputs**:
-- `video_path` (STRING): Path to video file (same as Qwen3-VL)
-  - **Just filename**: `video.mp4` → searches in `ComfyUI/input/`
-  - **Subfolder**: `videos/scene1.mp4` → searches in `ComfyUI/input/videos/`
-  - **Absolute path**: `/full/path/to/video.mp4`
-- `analysis_type` (DROPDOWN): Type of video analysis
-  - **detailed**: Comprehensive full video description (512 tokens, temp 0.2)
-  - **summary**: Brief 2-3 sentence overview (256 tokens, temp 0.2)
-  - **action**: Focus on actions/movements (384 tokens, temp 0.2)
-
-**Optional Inputs**:
-- `custom_prompt` (STRING): Custom analysis prompt
-- `max_frames` (INT): Maximum frames to process (default: 8, range: 1-32)
-- `use_4bit` (BOOLEAN): Enable 4-bit quantization (default: False)
-- `temperature` (FLOAT): Sampling temperature (default: 0.2)
-
-**Outputs**:
-- `description` (STRING): Full video description
-- `info` (STRING): Processing metadata
-
-**How It Works**:
-1. Resolves video path and validates file
-2. Loads DAM-3B-Video model (cached after first load)
-3. Samples frames uniformly across video
-4. Analyzes entire video frame (full-frame mask)
-5. Generates comprehensive description of video content
-6. Returns detailed analysis
-
-**Use Cases**:
-- Comprehensive video content analysis
-- Scene understanding and description
-- Action and event detection
-- Alternative to Qwen3-VL with different model capabilities
-
-**Performance**:
-- Model size: ~7GB
-- Inference time: ~10-20 seconds (8 frames)
-- Works independently from Qwen3-VL node
 
 ---
 
@@ -351,23 +259,13 @@ Merges two string arrays with a separator.
 - ✅ Performance optimization (removed tensor conversion overhead)
 - ✅ Analysis type presets (detailed/summary/keywords)
 
-### Phase 2: DAM Full Video Analysis ✅
-- ✅ DAM model loader with singleton caching
-- ✅ Full video inference wrapper
-- ✅ ComfyUI node integration
-- ✅ Automatic full-frame mask generation
-- ✅ Multi-frame video processing
-- ✅ Analysis type presets (detailed/summary/action)
-- ✅ Simplified node interface (removed region_points parameter)
-
-### Phase 3: Advanced Features (Planned)
-- [ ] Dual-model combination node (Qwen3-VL + DAM)
+### Phase 2: Advanced Features (Planned)
 - [ ] Batch processing support for multiple videos
 - [ ] Video timestamp-based analysis
 - [ ] Advanced prompt templates library
 - [ ] Performance optimization and caching improvements
 
-### Phase 4: Production Ready (Future)
+### Phase 3: Production Ready (Future)
 - [ ] Comprehensive testing
 - [ ] Example workflows
 - [ ] Performance benchmarks
@@ -422,53 +320,21 @@ limitations under the License.
 
 - [ComfyUI](https://github.com/comfyanonymous/ComfyUI) - Node-based UI for Stable Diffusion
 - [Qwen-VL](https://github.com/QwenLM/Qwen-VL) - Vision-language model by Alibaba
-- [NVIDIA DAM](https://huggingface.co/nvidia/DAM-3B-Video) - Description Anything Model
-
 ## Changelog
 
-### v1.2.0 (2025-12-31)
-- ✅ Added StoryBoard category with 5 new nodes:
-  - JSON Parser: Parse storyboard JSON files
-  - Build Prompt: Generate scene prompts
-  - Build Character Prompt: Generate character descriptions
-  - Select Index: Select specific scene
-  - Merge Strings: Combine prompt strings
-- ✅ Support for new camelCase JSON format
-- ✅ Integrated Video and StoryBoard categories in single package
+### v1.3.2
+- Added Switch Case node (select 1 of N inputs by index)
+- Added Get/Set virtual nodes (frontend JS, wire-free connections)
+- Added Join Strings node
+- Added String to List node
+- Updated node display names
+- Added frontend JS support (WEB_DIRECTORY)
 
-### v1.1.1 (2025-10-28)
-- ✅ DAM Node: Removed region_points parameter for simplified interface
-- ✅ DAM Node: Changed to full video analysis (automatic full-frame mask)
-- ✅ DAM Node: Updated prompts from "marked region" to "this video"
-- ✅ Updated installation guide with --no-deps explanation for describe-anything
-- ✅ Fixed dependency conflicts between describe-anything and ComfyUI
-- ✅ Fixed DAM model parameter names and prompt format (<image> tag)
-- ✅ Fixed video path resolution for ComfyUI Desktop App custom directories
-- ✅ Node display name updated: "DAM Region" → "DAM"
+### v1.2.0
+- Added StoryBoard category (JSON Parser, Build Prompt, Build Character Prompt, Select Index, Merge Strings)
 
-### v1.2.0 (2025-10-22)
-- ✅ Analysis type presets: detailed / summary / keywords
-- ✅ Optimized prompts and parameters for each analysis type
-- ✅ Custom prompt support with override capability
-- ✅ Automatic max_tokens and temperature configuration per type
-- ✅ Enhanced USAGE.md with analysis type examples
+### v1.1.0
+- Smart video path resolution, performance optimization
 
-### v1.1.0 (2025-10-22)
-- ✅ Smart video path resolution (auto-search in ComfyUI/input/)
-- ✅ Performance optimization: removed tensor conversion (13x faster)
-- ✅ Simplified to path-only input (cleaner architecture)
-- ✅ Updated documentation with temperature vs denoise explanation
-- ✅ Added comprehensive usage guide (USAGE.md)
-
-### v1.0.0 (2025-10-22)
-- ✅ Full Qwen3-VL integration
-- ✅ Model caching with singleton pattern
-- ✅ 4-bit quantization support
-- ✅ ComfyUI standard model directory structure
-- ✅ Comprehensive error handling
-
-### v0.1.0-alpha (2025-10-21)
-- Initial project structure
-- Basic node skeleton
-- Node registration system
-- Documentation framework
+### v1.0.0
+- Full Qwen3-VL integration with model caching
