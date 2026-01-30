@@ -34,12 +34,6 @@ def _import_qwen3vl():
     return ModelCache, Qwen3VLInference
 
 
-def _import_dam():
-    from models.dam_cache import DAMModelCache
-    from models.dam_inference import DAMInference
-    return DAMModelCache, DAMInference
-
-
 class VideoDescriptionQwen3VL:
     """
     Video description node using Qwen3-VL-8B-Instruct model
@@ -303,180 +297,12 @@ class VideoDescriptionQwen3VL:
             return (f"Error: {error_msg}", f"Exception: {type(e).__name__}")
 
 
-class VideoDescriptionDAM:
-    """
-    Video description node using NVIDIA DAM-3B-Video
-    Generates detailed descriptions of entire video content
-    """
-
-    @classmethod
-    def _get_analysis_prompt(cls, analysis_type: str, custom_prompt: str = "") -> tuple[str, int, float]:
-        """Get optimized prompt for DAM video analysis"""
-        if custom_prompt and custom_prompt.strip():
-            return (custom_prompt.strip(), 512, 0.2)
-
-        analysis_configs = {
-            "detailed": {
-                "prompt": (
-                    "Provide a comprehensive and detailed description of this video. "
-                    "Include information about:\n"
-                    "- Main subjects and objects in the scene\n"
-                    "- Actions and movements\n"
-                    "- Visual characteristics (colors, textures, lighting)\n"
-                    "- Setting and environment\n"
-                    "- Temporal changes throughout the video"
-                ),
-                "max_tokens": 512,
-                "temperature": 0.2
-            },
-            "summary": {
-                "prompt": (
-                    "Provide a brief summary of what happens in this video "
-                    "in 2-3 sentences."
-                ),
-                "max_tokens": 256,
-                "temperature": 0.2
-            },
-            "action": {
-                "prompt": (
-                    "Describe the specific actions and movements occurring in "
-                    "this video."
-                ),
-                "max_tokens": 384,
-                "temperature": 0.2
-            }
-        }
-
-        config = analysis_configs.get(analysis_type, analysis_configs["detailed"])
-        return (config["prompt"], config["max_tokens"], config["temperature"])
-
-    @classmethod
-    def INPUT_TYPES(cls):
-        return {
-            "required": {
-                "video_path": ("STRING", {
-                    "default": "",
-                    "multiline": False
-                }),
-                "analysis_type": (["detailed", "summary", "action"], {
-                    "default": "detailed"
-                }),
-            },
-            "optional": {
-                "custom_prompt": ("STRING", {
-                    "default": "",
-                    "multiline": True
-                }),
-                "max_frames": ("INT", {
-                    "default": 8,
-                    "min": 1,
-                    "max": 32,
-                    "step": 1
-                }),
-                "use_4bit": ("BOOLEAN", {
-                    "default": False
-                }),
-                "temperature": ("FLOAT", {
-                    "default": 0.2,
-                    "min": 0.0,
-                    "max": 1.0,
-                    "step": 0.1
-                }),
-            }
-        }
-
-    RETURN_TYPES = ("STRING", "STRING")
-    RETURN_NAMES = ("description", "info")
-    FUNCTION = "describe_video"
-    CATEGORY = "video"
-
-    def describe_video(self, video_path, analysis_type,
-                       custom_prompt="", max_frames=8, use_4bit=False, temperature=0.2):
-        """
-        Generate full video description using DAM (analyzes entire video frame)
-
-        Args:
-            video_path: Path to video file
-            analysis_type: Type of analysis (detailed/summary/action)
-            custom_prompt: Optional custom prompt
-            max_frames: Maximum frames to process from video
-            use_4bit: Use 4-bit quantization
-            temperature: Sampling temperature
-
-        Returns:
-            Tuple of (description, info)
-        """
-        try:
-            # Validate and resolve video path
-            video_path = video_path.strip()
-            if not video_path:
-                return ("Error: Video path is empty", "Please provide a video path")
-
-            # Lazy import heavy modules
-            VideoProcessor = _import_video_processor()
-            DAMModelCache, DAMInference = _import_dam()
-
-            # Use Qwen3VL's path resolution logic
-            resolved_path = VideoDescriptionQwen3VL._resolve_video_path(video_path)
-
-            # Get analysis configuration
-            prompt, max_tokens, config_temp = self._get_analysis_prompt(analysis_type, custom_prompt)
-            if not custom_prompt:
-                temperature = config_temp
-
-            # Get video info
-            video_info = VideoProcessor.get_video_info(resolved_path)
-            video_source = Path(resolved_path).name
-
-            info_text = (
-                f"Source: {video_source}\n"
-                f"Type: DAM Full Video Analysis ({analysis_type})\n"
-                f"Duration: {video_info['duration']:.2f}s\n"
-                f"Resolution: {video_info['width']}x{video_info['height']}\n"
-                f"Max frames: {max_frames}\n"
-                f"Max tokens: {max_tokens}\n"
-                f"Temperature: {temperature:.2f}\n"
-                f"4-bit: {use_4bit}"
-            )
-
-            logger.info(f"Processing full video: {video_source}")
-            logger.info(f"Analysis type: {analysis_type}")
-
-            # Load DAM model
-            logger.info("Loading DAM-3B-Video model...")
-            tokenizer, model, image_processor, context_len = DAMModelCache.get_dam_model(use_4bit=use_4bit)
-
-            # Create inference wrapper
-            inference = DAMInference(tokenizer, model, image_processor, context_len)
-
-            # Generate description (full video, no region masking)
-            description = inference.generate_region_description(
-                video_path=resolved_path,
-                region_points=None,  # Full video analysis
-                prompt=prompt,
-                max_new_tokens=max_tokens,
-                temperature=temperature,
-                max_frames=max_frames
-            )
-
-            return (description, info_text)
-
-        except Exception as e:
-            error_msg = f"Error during DAM inference: {str(e)}"
-            logger.error(error_msg)
-            import traceback
-            traceback.print_exc()
-            return (f"Error: {error_msg}", f"Exception: {type(e).__name__}")
-
-
 # Node class mappings for ComfyUI
 NODE_CLASS_MAPPINGS = {
     "VideoDescriptionQwen3VL": VideoDescriptionQwen3VL,
-    "VideoDescriptionDAM": VideoDescriptionDAM,
 }
 
 # Display name mappings for ComfyUI UI
 NODE_DISPLAY_NAME_MAPPINGS = {
-    "VideoDescriptionQwen3VL": "Video Description (Qwen3-VL)",
-    "VideoDescriptionDAM": "Video Description (DAM)",
+    "VideoDescriptionQwen3VL": "IXIWORKS - Video Description (Qwen3-VL)",
 }

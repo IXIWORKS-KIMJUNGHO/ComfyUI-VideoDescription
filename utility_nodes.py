@@ -68,6 +68,6 @@ NODE_CLASS_MAPPINGS = {
 }
 
 NODE_DISPLAY_NAME_MAPPINGS = {
-    "SwitchBoolean": "Switch",
-    "StringToList": "String to List",
+    "SwitchBoolean": "IXIWORKS - Switch (Utils)",
+    "StringToList": "IXIWORKS - String to List (Utils)",
 }
