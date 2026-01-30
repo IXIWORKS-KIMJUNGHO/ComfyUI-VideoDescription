@@ -92,12 +92,10 @@ class SwitchCaseNode:
         required = {
             "count": ("INT", {"default": 3, "min": 2, "max": cls.MAX_INPUTS, "step": 1}),
             "select": ("INT", {"default": 0, "min": 0, "max": cls.MAX_INPUTS - 1, "step": 1}),
-            "input_0": (ANY,),
-            "input_1": (ANY,),
         }
         optional = {
             f"input_{i}": (ANY,)
-            for i in range(2, cls.MAX_INPUTS)
+            for i in range(cls.MAX_INPUTS)
         }
         return {"required": required, "optional": optional}
 

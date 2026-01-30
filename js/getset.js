@@ -56,7 +56,7 @@ app.registerExtension({
 
             onRemoved() {
                 const allGetters = this.graph._nodes.filter(
-                    (n) => n.type === "IXI_SetNode"
+                    (n) => n.type === "IXI_GetNode"
                 );
                 allGetters.forEach((getter) => {
                     if (getter.refreshComboValues) {
@@ -121,7 +121,6 @@ app.registerExtension({
             update() {
                 if (!this.graph) return;
 
-                // Update matching GetNodes type
                 const getters = this.graph._nodes.filter(
                     (n) => n.type === "IXI_GetNode" && n.widgets[0].value === this.widgets[0].value
                 );
@@ -129,7 +128,6 @@ app.registerExtension({
                     getter.setType(this.inputs[0].type);
                 });
 
-                // Update GetNodes that had previous name
                 if (this.properties.previousName) {
                     const prevGetters = this.graph._nodes.filter(
                         (n) => n.type === "IXI_GetNode" && n.widgets[0].value === this.properties.previousName
@@ -139,7 +137,6 @@ app.registerExtension({
                     });
                 }
 
-                // Refresh all GetNode dropdowns
                 const allGetters = this.graph._nodes.filter(
                     (n) => n.type === "IXI_GetNode"
                 );
@@ -247,7 +244,6 @@ app.registerExtension({
                 );
             }
 
-            // Key method: resolves virtual connection at queue time
             getInputLink(slot) {
                 const setter = this.findSetter();
                 if (setter) {
