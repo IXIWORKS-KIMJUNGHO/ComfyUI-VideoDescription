@@ -6,13 +6,22 @@ const MODE_MUTE = 2;
 
 function setUpstreamMode(node, bypass) {
     if (!node.graph) return;
+
+    // Mute/unmute the bypass node itself to cut data flow downstream
+    node.mode = bypass ? MODE_MUTE : MODE_ALWAYS;
+
+    // Mute/unmute the upstream source node
     const link = node.inputs[0].link;
-    if (link == null) return;
-    const linkInfo = node.graph.links[link];
-    if (!linkInfo) return;
-    const sourceNode = node.graph.getNodeById(linkInfo.origin_id);
-    if (!sourceNode) return;
-    sourceNode.mode = bypass ? MODE_MUTE : MODE_ALWAYS;
+    if (link != null) {
+        const linkInfo = node.graph.links[link];
+        if (linkInfo) {
+            const sourceNode = node.graph.getNodeById(linkInfo.origin_id);
+            if (sourceNode) {
+                sourceNode.mode = bypass ? MODE_MUTE : MODE_ALWAYS;
+            }
+        }
+    }
+
     node.graph.setDirtyCanvas(true, true);
 }
 
