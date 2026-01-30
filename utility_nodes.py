@@ -172,6 +172,25 @@ class SaveTextNode:
         return {}
 
 
+class BypassNode:
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "input": (ANY,),
+                "bypass": ("BOOLEAN", {"default": False}),
+            }
+        }
+
+    RETURN_TYPES = (ANY,)
+    RETURN_NAMES = ("output",)
+    FUNCTION = "execute"
+    CATEGORY = "IXIWORKS/Utils"
+
+    def execute(self, input, bypass):
+        return (input,)
+
+
 NODE_CLASS_MAPPINGS = {
     "SwitchBoolean": SwitchBooleanNode,
     "StringToList": StringToListNode,
@@ -180,6 +199,7 @@ NODE_CLASS_MAPPINGS = {
     "IXISetNode": IXISetNode,
     "IXIGetNode": IXIGetNode,
     "SaveText": SaveTextNode,
+    "Bypass": BypassNode,
 }
 
 NODE_DISPLAY_NAME_MAPPINGS = {
@@ -190,4 +210,5 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "IXISetNode": "Set (Utils)",
     "IXIGetNode": "Get (Utils)",
     "SaveText": "Save Text (Utils)",
+    "Bypass": "Bypass (Utils)",
 }
