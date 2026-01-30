@@ -1,0 +1,14 @@
+[project]
+name = "comfyui-ixiworks-tools"
+description = "Video description and storyboard custom nodes for ComfyUI. Includes Qwen3-VL video analysis, JSON storyboard parsing, and character prompt generation."
+version = "1.3.0"
+license = { file = "LICENSE" }
+dependencies = ["qwen-vl-utils", "opencv-python"]
+
+[project.urls]
+Repository = "https://github.com/IXIWORKS-KIMJUNGHO/IXIWORKS-Tools"
+
+[tool.comfy]
+PublisherId = "ixiworks"
+DisplayName = "IXIWORKS Tools"
+Icon = ""
