@@ -110,11 +110,50 @@ class SwitchCaseNode:
         return (kwargs.get(key, None),)
 
 
+class IXISetNode:
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "name": ("STRING", {"default": ""}),
+                "value": (ANY,),
+            }
+        }
+
+    RETURN_TYPES = (ANY,)
+    RETURN_NAMES = ("value",)
+    FUNCTION = "execute"
+    CATEGORY = "IXIWORKS/Utils"
+
+    def execute(self, name, value):
+        return (value,)
+
+
+class IXIGetNode:
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "name": ("STRING", {"default": ""}),
+            }
+        }
+
+    RETURN_TYPES = (ANY,)
+    RETURN_NAMES = ("value",)
+    FUNCTION = "execute"
+    CATEGORY = "IXIWORKS/Utils"
+
+    def execute(self, name):
+        return (None,)
+
+
 NODE_CLASS_MAPPINGS = {
     "SwitchBoolean": SwitchBooleanNode,
     "StringToList": StringToListNode,
     "JoinStrings": JoinStringsNode,
     "SwitchCase": SwitchCaseNode,
+    "IXISetNode": IXISetNode,
+    "IXIGetNode": IXIGetNode,
 }
 
 NODE_DISPLAY_NAME_MAPPINGS = {
@@ -122,4 +161,6 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "StringToList": "String to List (Utils)",
     "JoinStrings": "Join Strings (Utils)",
     "SwitchCase": "Switch Case (Utils)",
+    "IXISetNode": "Set (Utils)",
+    "IXIGetNode": "Get (Utils)",
 }

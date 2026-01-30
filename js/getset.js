@@ -25,87 +25,45 @@ function applyColorByType(node, type) {
 app.registerExtension({
     name: "IXIWORKS.GetSetNodes",
 
-    async setup() {
-        const LGraphNode = LiteGraph.LGraphNode;
-
+    async nodeCreated(node) {
         // ─── SetNode ───
-        class SetNode extends LGraphNode {
-            constructor(title) {
-                super(title);
-                this.properties = this.properties || {};
-                this.properties.previousName = "";
-                this.serialize_widgets = true;
-                this.isVirtualNode = true;
+        if (node.comfyClass === "IXISetNode") {
+            node.isVirtualNode = true;
+            node.serialize_widgets = true;
 
-                this.addWidget("text", "Name", "", (value) => {
-                    this.validateName(this.graph);
-                    if (value !== "") {
-                        this.title = "Set: " + value;
-                    }
-                    this.update();
-                    this.properties.previousName = value;
-                });
+            if (!node.properties) node.properties = {};
+            node.properties.previousName = "";
 
-                this.addInput("*", "*");
-                this.addOutput("*", "*");
-            }
+            // Remove Python-defined inputs/outputs and rebuild
+            while (node.inputs.length > 0) node.removeInput(0);
+            while (node.outputs.length > 0) node.removeOutput(0);
+            node.widgets.length = 0;
 
-            onAdded(graph) {
-                this.validateName(graph);
-            }
-
-            onRemoved() {
-                const allGetters = this.graph._nodes.filter(
-                    (n) => n.type === "IXI_GetNode"
-                );
-                allGetters.forEach((getter) => {
-                    if (getter.refreshComboValues) {
-                        getter.refreshComboValues();
-                    }
-                });
-            }
-
-            onConnectionsChange(slotType, slot, isConnect, linkInfo) {
-                if (!this.graph || !linkInfo) return;
-
-                // Input connected
-                if (slotType === 1 && isConnect) {
-                    const originNode = this.graph.getNodeById(linkInfo.origin_id);
-                    if (originNode) {
-                        const outputSlot = originNode.outputs[linkInfo.origin_slot];
-                        if (outputSlot && outputSlot.type) {
-                            const type = outputSlot.type;
-                            this.inputs[0].type = type;
-                            this.inputs[0].name = type;
-                            this.outputs[0].type = type;
-                            this.outputs[0].name = type;
-                            applyColorByType(this, type);
-                            this.update();
-                        }
-                    }
+            // Add name widget
+            node.addWidget("text", "Name", "", (value) => {
+                node.validateName(node.graph);
+                if (value !== "") {
+                    node.title = "Set: " + value;
                 }
+                node.updateGetters();
+                node.properties.previousName = value;
+            });
 
-                // Input disconnected
-                if (slotType === 1 && !isConnect) {
-                    this.inputs[0].type = "*";
-                    this.inputs[0].name = "*";
-                    this.outputs[0].type = "*";
-                    this.outputs[0].name = "*";
-                    this.color = undefined;
-                    this.bgcolor = undefined;
-                    this.update();
-                }
-            }
+            // Add wildcard input/output
+            node.addInput("*", "*");
+            node.addOutput("*", "*");
 
-            validateName(graph) {
+            node.validateName = function (graph) {
                 if (!graph) return;
-                let name = this.widgets[0].value;
+                let name = node.widgets[0].value;
                 if (name === "") return;
 
                 const existing = new Set();
                 graph._nodes.forEach((n) => {
-                    if (n !== this && n.type === "IXI_SetNode") {
-                        existing.add(n.widgets[0].value);
+                    if (n !== node && n.comfyClass === "IXISetNode") {
+                        if (n.widgets && n.widgets[0]) {
+                            existing.add(n.widgets[0].value);
+                        }
                     }
                 });
 
@@ -115,156 +73,149 @@ app.registerExtension({
                     name = baseName + "_" + counter;
                     counter++;
                 }
-                this.widgets[0].value = name;
-            }
+                node.widgets[0].value = name;
+            };
 
-            update() {
-                if (!this.graph) return;
+            node.updateGetters = function () {
+                if (!node.graph) return;
 
-                const getters = this.graph._nodes.filter(
-                    (n) => n.type === "IXI_GetNode" && n.widgets[0].value === this.widgets[0].value
-                );
-                getters.forEach((getter) => {
-                    getter.setType(this.inputs[0].type);
-                });
-
-                if (this.properties.previousName) {
-                    const prevGetters = this.graph._nodes.filter(
-                        (n) => n.type === "IXI_GetNode" && n.widgets[0].value === this.properties.previousName
-                    );
-                    prevGetters.forEach((getter) => {
-                        getter.setName(this.widgets[0].value);
+                // Update type on matching GetNodes
+                node.graph._nodes
+                    .filter((n) => n.comfyClass === "IXIGetNode" && n.widgets[0] && n.widgets[0].value === node.widgets[0].value)
+                    .forEach((getter) => {
+                        if (getter.setType) getter.setType(node.inputs[0].type);
                     });
+
+                // Rename GetNodes that had previous name
+                if (node.properties.previousName) {
+                    node.graph._nodes
+                        .filter((n) => n.comfyClass === "IXIGetNode" && n.widgets[0] && n.widgets[0].value === node.properties.previousName)
+                        .forEach((getter) => {
+                            if (getter.setGetName) getter.setGetName(node.widgets[0].value);
+                        });
+                }
+            };
+
+            const origOnConnectionsChange = node.onConnectionsChange;
+            node.onConnectionsChange = function (slotType, slot, isConnect, linkInfo) {
+                if (origOnConnectionsChange) origOnConnectionsChange.apply(this, arguments);
+                if (!node.graph || !linkInfo) return;
+
+                if (slotType === 1 && isConnect) {
+                    const originNode = node.graph.getNodeById(linkInfo.origin_id);
+                    if (originNode && originNode.outputs && originNode.outputs[linkInfo.origin_slot]) {
+                        const type = originNode.outputs[linkInfo.origin_slot].type;
+                        node.inputs[0].type = type;
+                        node.inputs[0].name = type;
+                        node.outputs[0].type = type;
+                        node.outputs[0].name = type;
+                        applyColorByType(node, type);
+                        node.updateGetters();
+                    }
                 }
 
-                const allGetters = this.graph._nodes.filter(
-                    (n) => n.type === "IXI_GetNode"
-                );
-                allGetters.forEach((getter) => {
-                    if (getter.refreshComboValues) {
-                        getter.refreshComboValues();
-                    }
-                });
-            }
+                if (slotType === 1 && !isConnect) {
+                    node.inputs[0].type = "*";
+                    node.inputs[0].name = "*";
+                    node.outputs[0].type = "*";
+                    node.outputs[0].name = "*";
+                    node.color = undefined;
+                    node.bgcolor = undefined;
+                    node.updateGetters();
+                }
+            };
 
-            clone() {
-                const cloned = super.clone();
-                cloned.inputs[0].name = "*";
-                cloned.inputs[0].type = "*";
-                cloned.outputs[0].name = "*";
-                cloned.outputs[0].type = "*";
-                cloned.widgets[0].value = "";
-                cloned.properties.previousName = "";
-                cloned.title = "Set";
-                cloned.color = undefined;
-                cloned.bgcolor = undefined;
-                cloned.size = cloned.computeSize();
-                return cloned;
-            }
+            const origOnAdded = node.onAdded;
+            node.onAdded = function (graph) {
+                if (origOnAdded) origOnAdded.apply(this, arguments);
+                node.validateName(graph);
+            };
+
+            const origOnRemoved = node.onRemoved;
+            node.onRemoved = function () {
+                if (origOnRemoved) origOnRemoved.apply(this, arguments);
+            };
+
+            node.setSize(node.computeSize());
         }
 
         // ─── GetNode ───
-        class GetNode extends LGraphNode {
-            constructor(title) {
-                super(title);
-                this.properties = this.properties || {};
-                this.serialize_widgets = true;
-                this.isVirtualNode = true;
+        if (node.comfyClass === "IXIGetNode") {
+            node.isVirtualNode = true;
+            node.serialize_widgets = true;
 
-                const node = this;
+            // Remove Python-defined inputs/outputs and rebuild
+            while (node.inputs.length > 0) node.removeInput(0);
+            while (node.outputs.length > 0) node.removeOutput(0);
+            node.widgets.length = 0;
 
-                this.addWidget("combo", "Name", "", (value) => {
-                    this.onRename();
-                }, {
-                    values: () => {
-                        if (!node.graph) return [""];
-                        const setters = node.graph._nodes.filter(
-                            (n) => n.type === "IXI_SetNode"
-                        );
-                        const names = setters
-                            .map((n) => n.widgets[0].value)
-                            .filter((v) => v !== "")
-                            .sort();
-                        return names.length > 0 ? names : [""];
-                    }
-                });
+            // Add combo widget listing all SetNode names
+            node.addWidget("combo", "Name", "", (value) => {
+                node.onRename();
+            }, {
+                values: () => {
+                    if (!node.graph) return [""];
+                    const setters = node.graph._nodes.filter(
+                        (n) => n.comfyClass === "IXISetNode"
+                    );
+                    const names = setters
+                        .map((n) => (n.widgets && n.widgets[0]) ? n.widgets[0].value : "")
+                        .filter((v) => v !== "")
+                        .sort();
+                    return names.length > 0 ? names : [""];
+                }
+            });
 
-                this.addOutput("*", "*");
-            }
+            // Add wildcard output
+            node.addOutput("*", "*");
 
-            onRename() {
-                const setter = this.findSetter();
+            node.onRename = function () {
+                const setter = node.findSetter();
                 if (setter) {
                     const type = setter.inputs[0].type;
-                    this.setType(type);
-                    this.title = "Get: " + setter.widgets[0].value;
-                    applyColorByType(this, type);
+                    node.setType(type);
+                    node.title = "Get: " + setter.widgets[0].value;
+                    applyColorByType(node, type);
                 } else {
-                    this.setType("*");
-                    this.title = "Get";
-                    this.color = undefined;
-                    this.bgcolor = undefined;
+                    node.setType("*");
+                    node.title = "Get";
+                    node.color = undefined;
+                    node.bgcolor = undefined;
                 }
-            }
+            };
 
-            setName(name) {
-                this.widgets[0].value = name;
-                this.onRename();
-            }
+            node.setGetName = function (name) {
+                node.widgets[0].value = name;
+                node.onRename();
+            };
 
-            setType(type) {
-                this.outputs[0].name = type;
-                this.outputs[0].type = type;
-                this.validateLinks();
-            }
+            node.setType = function (type) {
+                node.outputs[0].name = type;
+                node.outputs[0].type = type;
+            };
 
-            validateLinks() {
-                if (!this.graph || !this.outputs[0].links) return;
-                const type = this.outputs[0].type;
-                if (type === "*") return;
-
-                this.outputs[0].links.slice().forEach((linkId) => {
-                    const link = this.graph.links[linkId];
-                    if (link && link.type !== "*" && link.type !== type) {
-                        this.graph.removeLink(linkId);
-                    }
-                });
-            }
-
-            refreshComboValues() {
-                // Widget values callback handles dynamic refresh
-            }
-
-            findSetter() {
-                if (!this.graph) return null;
-                const name = this.widgets[0].value;
+            node.findSetter = function () {
+                if (!node.graph) return null;
+                const name = node.widgets[0].value;
                 if (!name) return null;
-                return this.graph._nodes.find(
-                    (n) => n.type === "IXI_SetNode" && n.widgets[0].value === name
+                return node.graph._nodes.find(
+                    (n) => n.comfyClass === "IXISetNode" && n.widgets[0] && n.widgets[0].value === name
                 );
-            }
+            };
 
-            getInputLink(slot) {
-                const setter = this.findSetter();
+            // Key method: resolves virtual connection at queue time
+            node.getInputLink = function (slot) {
+                const setter = node.findSetter();
                 if (setter) {
                     const slotInfo = setter.inputs[slot];
                     if (slotInfo && slotInfo.link != null) {
-                        return this.graph.links[slotInfo.link];
+                        return node.graph.links[slotInfo.link];
                     }
                 }
                 return null;
-            }
+            };
 
-            onConnectionsChange() {
-                this.validateLinks();
-            }
+            node.setSize(node.computeSize());
         }
-
-        // ─── Register nodes ───
-        LiteGraph.registerNodeType("IXI_SetNode", Object.assign(SetNode, { title: "Set" }));
-        LiteGraph.registerNodeType("IXI_GetNode", Object.assign(GetNode, { title: "Get" }));
-
-        SetNode.category = "IXIWORKS/Utils";
-        GetNode.category = "IXIWORKS/Utils";
     }
 });
