@@ -172,6 +172,80 @@ class SaveTextNode:
         return {}
 
 
+class LoadImageListNode:
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "filenames": ("STRING", {"default": "", "multiline": True}),
+            }
+        }
+
+    RETURN_TYPES = ("IMAGE",)
+    RETURN_NAMES = ("images",)
+    OUTPUT_IS_LIST = (True,)
+    FUNCTION = "load"
+    CATEGORY = "IXIWORKS/Utils"
+
+    def load(self, filenames):
+        import os
+        import numpy as np
+        import torch
+        from PIL import Image
+        import folder_paths
+
+        input_dir = folder_paths.get_input_directory()
+        names = [n.strip() for n in filenames.split(",") if n.strip()]
+
+        images = []
+        for name in names:
+            path = os.path.join(input_dir, name)
+            img = Image.open(path).convert("RGB")
+            img_array = np.array(img).astype(np.float32) / 255.0
+            img_tensor = torch.from_numpy(img_array).unsqueeze(0)
+            images.append(img_tensor)
+
+        if not images:
+            blank = torch.zeros(1, 64, 64, 3)
+            images.append(blank)
+
+        return (images,)
+
+
+class ImageToListNode:
+    MAX_INPUTS = 8
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        required = {
+            "count": ("INT", {"default": 4, "min": 1, "max": cls.MAX_INPUTS, "step": 1}),
+            "image_1": ("IMAGE",),
+        }
+        optional = {
+            f"image_{i}": ("IMAGE",)
+            for i in range(2, cls.MAX_INPUTS + 1)
+        }
+        return {"required": required, "optional": optional}
+
+    RETURN_TYPES = ("IMAGE",)
+    RETURN_NAMES = ("images",)
+    OUTPUT_IS_LIST = (True,)
+    FUNCTION = "convert"
+    CATEGORY = "IXIWORKS/Utils"
+
+    def convert(self, count, **kwargs):
+        result = []
+        for i in range(1, count + 1):
+            key = f"image_{i}"
+            img = kwargs.get(key)
+            if img is not None:
+                result.append(img)
+        if not result:
+            import torch
+            result.append(torch.zeros(1, 64, 64, 3))
+        return (result,)
+
+
 class BypassNode:
     @classmethod
     def INPUT_TYPES(cls):
@@ -201,6 +275,8 @@ NODE_CLASS_MAPPINGS = {
     "IXISetNode": IXISetNode,
     "IXIGetNode": IXIGetNode,
     "SaveText": SaveTextNode,
+    "LoadImageList": LoadImageListNode,
+    "ImageToList": ImageToListNode,
     "Bypass": BypassNode,
 }
 
@@ -212,5 +288,7 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "IXISetNode": "Set (Utils)",
     "IXIGetNode": "Get (Utils)",
     "SaveText": "Save Text (Utils)",
+    "LoadImageList": "Load Image List (Utils)",
+    "ImageToList": "Image to List (Utils)",
     "Bypass": "Bypass (Utils)",
 }
