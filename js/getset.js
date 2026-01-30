@@ -25,6 +25,16 @@ app.registerExtension({
 
         // ─── SetNode ───
         if (nodeData.name === "IXISetNode") {
+
+            function makeSetCallback(node) {
+                return (value) => {
+                    node._validateName();
+                    if (value !== "") node.title = "Set: " + value;
+                    node._updateGetters();
+                    node.properties.previousName = value;
+                };
+            }
+
             const origCreated = nodeType.prototype.onNodeCreated;
             nodeType.prototype.onNodeCreated = function () {
                 if (origCreated) origCreated.apply(this, arguments);
@@ -32,22 +42,17 @@ app.registerExtension({
                 this.isVirtualNode = true;
                 this.serialize_widgets = true;
                 if (!this.properties) this.properties = {};
-                this.properties.previousName = "";
+                this.properties.previousName = this.properties.previousName || "";
 
-                // Clear Python defaults and build from scratch
-                this.inputs = [];
-                this.outputs = [];
+                // Build widgets from scratch (Python stub has none)
                 this.widgets = [];
+                this.addWidget("text", "Name", "", makeSetCallback(this));
 
-                this.addWidget("text", "Name", "", (value) => {
-                    this._validateName();
-                    if (value !== "") this.title = "Set: " + value;
-                    this._updateGetters();
-                    this.properties.previousName = value;
-                });
+                // Add input only if Python didn't create one (INPUT_TYPES is empty)
+                if (this.inputs.length === 0) this.addInput("*", "*");
+                // Ensure 1 output
+                if (this.outputs.length === 0) this.addOutput("*", "*");
 
-                this.addInput("*", "*");
-                this.addOutput("*", "*");
                 this.setSize(this.computeSize());
             };
 
@@ -81,6 +86,8 @@ app.registerExtension({
             const origConnChange = nodeType.prototype.onConnectionsChange;
             nodeType.prototype.onConnectionsChange = function (slotType, slot, isConnect, linkInfo) {
                 if (origConnChange) origConnChange.apply(this, arguments);
+                // Skip during configure to prevent link reset
+                if (this._configuring) return;
                 if (!this.graph || !linkInfo) return;
                 if (slotType === 1 && isConnect) {
                     const origin = this.graph.getNodeById(linkInfo.origin_id);
@@ -114,6 +121,7 @@ app.registerExtension({
             // Ensure correct state after deserialization
             const origConfigure = nodeType.prototype.onConfigure;
             nodeType.prototype.onConfigure = function (info) {
+                this._configuring = true;
                 if (origConfigure) origConfigure.apply(this, arguments);
                 this.isVirtualNode = true;
 
@@ -124,16 +132,42 @@ app.registerExtension({
                 while (this.outputs.length > 1) this.removeOutput(this.outputs.length - 1);
                 if (this.outputs.length === 0) this.addOutput("*", "*");
 
+                // Restore widget callback (deserialization doesn't preserve callbacks)
+                if (this.widgets && this.widgets.length > 0) {
+                    this.widgets[0].callback = makeSetCallback(this);
+                }
+
                 if (this.widgets && this.widgets[0] && this.widgets[0].value) {
                     this.title = "Set: " + this.widgets[0].value;
                     applyColorByType(this, this.inputs[0].type);
                 }
                 this.setSize(this.computeSize());
+                this._configuring = false;
             };
         }
 
         // ─── GetNode ───
         if (nodeData.name === "IXIGetNode") {
+
+            function makeGetCallback(node) {
+                return (value) => {
+                    node._onRename();
+                };
+            }
+
+            function makeGetValues(node) {
+                return () => {
+                    if (!node.graph) return [""];
+                    const names = [];
+                    for (const n of node.graph._nodes) {
+                        if (n.comfyClass === "IXISetNode" && n.widgets && n.widgets[0] && n.widgets[0].value !== "")
+                            names.push(n.widgets[0].value);
+                    }
+                    names.sort();
+                    return names.length > 0 ? names : [""];
+                };
+            }
+
             const origCreated = nodeType.prototype.onNodeCreated;
             nodeType.prototype.onNodeCreated = function () {
                 if (origCreated) origCreated.apply(this, arguments);
@@ -141,28 +175,14 @@ app.registerExtension({
                 this.isVirtualNode = true;
                 this.serialize_widgets = true;
 
-                // Clear Python defaults and build from scratch
-                this.inputs = [];
-                this.outputs = [];
+                // Build widgets from scratch (Python stub has none)
                 this.widgets = [];
-
-                const self = this;
-                this.addWidget("combo", "Name", "", (value) => {
-                    self._onRename();
-                }, {
-                    values: () => {
-                        if (!self.graph) return [""];
-                        const names = [];
-                        for (const n of self.graph._nodes) {
-                            if (n.comfyClass === "IXISetNode" && n.widgets && n.widgets[0] && n.widgets[0].value !== "")
-                                names.push(n.widgets[0].value);
-                        }
-                        names.sort();
-                        return names.length > 0 ? names : [""];
-                    }
+                this.addWidget("combo", "Name", "", makeGetCallback(this), {
+                    values: makeGetValues(this)
                 });
 
-                this.addOutput("*", "*");
+                // Python stub has 0 inputs, 1 output - ensure 1 output
+                if (this.outputs.length === 0) this.addOutput("*", "*");
                 this.setSize(this.computeSize());
             };
 
@@ -222,6 +242,13 @@ app.registerExtension({
 
                 while (this.outputs.length > 1) this.removeOutput(this.outputs.length - 1);
                 if (this.outputs.length === 0) this.addOutput("*", "*");
+
+                // Restore widget callback (deserialization doesn't preserve callbacks)
+                if (this.widgets && this.widgets.length > 0) {
+                    this.widgets[0].callback = makeGetCallback(this);
+                    if (!this.widgets[0].options) this.widgets[0].options = {};
+                    this.widgets[0].options.values = makeGetValues(this);
+                }
 
                 if (this.widgets && this.widgets[0] && this.widgets[0].value) {
                     this._onRename();

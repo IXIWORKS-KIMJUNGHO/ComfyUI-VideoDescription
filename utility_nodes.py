@@ -113,7 +113,12 @@ class SwitchCaseNode:
 class IXISetNode:
     @classmethod
     def INPUT_TYPES(cls):
-        return {"required": {}}
+        return {
+            "required": {},
+            "optional": {
+                "value": (ANY,),
+            }
+        }
 
     RETURN_TYPES = (ANY,)
     RETURN_NAMES = ("value",)
