@@ -1,5 +1,7 @@
 """
 Video Description Nodes for ComfyUI
+All heavy imports (transformers, model classes) are lazy-loaded
+to avoid blocking ComfyUI startup.
 """
 
 import logging
@@ -16,15 +18,26 @@ current_dir = os.path.dirname(os.path.abspath(__file__))
 if current_dir not in sys.path:
     sys.path.insert(0, current_dir)
 
-from models.model_cache import ModelCache
-from models.qwen3vl_inference import Qwen3VLInference
-from models.dam_cache import DAMModelCache
-from models.dam_inference import DAMInference
-from processing.video_processor import VideoProcessor
-
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+
+def _import_video_processor():
+    from processing.video_processor import VideoProcessor
+    return VideoProcessor
+
+
+def _import_qwen3vl():
+    from models.model_cache import ModelCache
+    from models.qwen3vl_inference import Qwen3VLInference
+    return ModelCache, Qwen3VLInference
+
+
+def _import_dam():
+    from models.dam_cache import DAMModelCache
+    from models.dam_inference import DAMInference
+    return DAMModelCache, DAMInference
 
 
 class VideoDescriptionQwen3VL:
@@ -225,6 +238,10 @@ class VideoDescriptionQwen3VL:
             except FileNotFoundError as e:
                 return (f"Error: {str(e)}", "File not found")
 
+            # Lazy import heavy modules
+            VideoProcessor = _import_video_processor()
+            ModelCache, Qwen3VLInference = _import_qwen3vl()
+
             # Validate video file
             if not VideoProcessor.validate_video(resolved_path):
                 return (f"Error: Invalid video file: {resolved_path}", "Video validation failed")
@@ -394,6 +411,10 @@ class VideoDescriptionDAM:
             video_path = video_path.strip()
             if not video_path:
                 return ("Error: Video path is empty", "Please provide a video path")
+
+            # Lazy import heavy modules
+            VideoProcessor = _import_video_processor()
+            DAMModelCache, DAMInference = _import_dam()
 
             # Use Qwen3VL's path resolution logic
             resolved_path = VideoDescriptionQwen3VL._resolve_video_path(video_path)

@@ -7,13 +7,8 @@ import torch
 import os
 import warnings
 from pathlib import Path
-from transformers import Qwen3VLForConditionalGeneration, AutoProcessor
-from typing import Tuple, Optional
+from typing import Tuple, Optional, Any
 import logging
-
-# Suppress known deprecation warnings from transformers library
-warnings.filterwarnings('ignore', message='.*torchvision.*deprecated.*')
-warnings.filterwarnings('ignore', category=FutureWarning, module='transformers')
 
 logger = logging.getLogger(__name__)
 
@@ -25,8 +20,8 @@ class ModelCache:
     """
 
     _instance = None
-    _qwen3vl_model: Optional[Qwen3VLForConditionalGeneration] = None
-    _qwen3vl_processor: Optional[AutoProcessor] = None
+    _qwen3vl_model: Optional[Any] = None
+    _qwen3vl_processor: Optional[Any] = None
     _model_name = "Qwen/Qwen3-VL-8B-Instruct"
 
     @classmethod
@@ -53,7 +48,7 @@ class ModelCache:
         return cls._instance
 
     @classmethod
-    def get_qwen3vl(cls, use_4bit: bool = False) -> Tuple[Qwen3VLForConditionalGeneration, AutoProcessor]:
+    def get_qwen3vl(cls, use_4bit: bool = False) -> Tuple[Any, Any]:
         """
         Get or load Qwen3-VL model and processor
 
@@ -64,6 +59,12 @@ class ModelCache:
             Tuple of (model, processor)
         """
         if cls._qwen3vl_model is None or cls._qwen3vl_processor is None:
+            # Lazy import: transformers model classes are heavy and slow to import
+            from transformers import Qwen3VLForConditionalGeneration, AutoProcessor
+
+            # Suppress known deprecation warnings from transformers library
+            warnings.filterwarnings('ignore', message='.*torchvision.*deprecated.*')
+            warnings.filterwarnings('ignore', category=FutureWarning, module='transformers')
             # Get local model path
             model_path = cls._get_model_path()
 

@@ -5,7 +5,7 @@
 # ComfyUI already provides: torch, transformers, pillow, numpy
 #
 # Installation command:
-#   pip install qwen-vl-utils opencv-python
+#   pip install qwen-vl-utils opencv-python-headless
 #
 # For DAM support (CUDA only):
 #   pip install --no-deps git+https://github.com/NVlabs/describe-anything.git
@@ -15,7 +15,8 @@
 qwen-vl-utils
 
 # Required for video processing (if not already installed)
-opencv-python
+# NOTE: Must use headless version to avoid conflict with ComfyUI's opencv-python-headless
+opencv-python-headless
 
 # Optional: NVIDIA DAM-3B-Video support (CUDA ONLY)
 # Must be installed separately with --no-deps flag
