@@ -1,6 +1,5 @@
 import { app } from "../../scripts/app.js";
 
-// ─── Color mapping by type ───
 const TYPE_COLORS = {
     MODEL:        { color: "#224", bgcolor: "#335" },
     CLIP:         { color: "#432", bgcolor: "#653" },
@@ -15,207 +14,203 @@ const TYPE_COLORS = {
 };
 
 function applyColorByType(node, type) {
-    const colors = TYPE_COLORS[type];
-    if (colors) {
-        node.color = colors.color;
-        node.bgcolor = colors.bgcolor;
-    }
+    const c = TYPE_COLORS[type];
+    if (c) { node.color = c.color; node.bgcolor = c.bgcolor; }
 }
 
 app.registerExtension({
     name: "IXIWORKS.GetSetNodes",
 
-    async nodeCreated(node) {
+    async beforeRegisterNodeDef(nodeType, nodeData, app) {
+
         // ─── SetNode ───
-        if (node.comfyClass === "IXISetNode") {
-            node.isVirtualNode = true;
-            node.serialize_widgets = true;
+        if (nodeData.name === "IXISetNode") {
+            const origCreated = nodeType.prototype.onNodeCreated;
+            nodeType.prototype.onNodeCreated = function () {
+                if (origCreated) origCreated.apply(this, arguments);
 
-            if (!node.properties) node.properties = {};
-            node.properties.previousName = "";
+                this.isVirtualNode = true;
+                this.serialize_widgets = true;
+                if (!this.properties) this.properties = {};
+                this.properties.previousName = "";
 
-            // Remove Python-defined inputs/outputs and rebuild
-            while (node.inputs.length > 0) node.removeInput(0);
-            while (node.outputs.length > 0) node.removeOutput(0);
-            node.widgets.length = 0;
+                // Clear Python defaults and build from scratch
+                this.inputs = [];
+                this.outputs = [];
+                this.widgets = [];
 
-            // Add name widget
-            node.addWidget("text", "Name", "", (value) => {
-                node.validateName(node.graph);
-                if (value !== "") {
-                    node.title = "Set: " + value;
-                }
-                node.updateGetters();
-                node.properties.previousName = value;
-            });
-
-            // Add wildcard input/output
-            node.addInput("*", "*");
-            node.addOutput("*", "*");
-
-            node.validateName = function (graph) {
-                if (!graph) return;
-                let name = node.widgets[0].value;
-                if (name === "") return;
-
-                const existing = new Set();
-                graph._nodes.forEach((n) => {
-                    if (n !== node && n.comfyClass === "IXISetNode") {
-                        if (n.widgets && n.widgets[0]) {
-                            existing.add(n.widgets[0].value);
-                        }
-                    }
+                this.addWidget("text", "Name", "", (value) => {
+                    this._validateName();
+                    if (value !== "") this.title = "Set: " + value;
+                    this._updateGetters();
+                    this.properties.previousName = value;
                 });
 
-                let baseName = name;
-                let counter = 0;
-                while (existing.has(name)) {
-                    name = baseName + "_" + counter;
-                    counter++;
-                }
-                node.widgets[0].value = name;
+                this.addInput("*", "*");
+                this.addOutput("*", "*");
+                this.setSize(this.computeSize());
             };
 
-            node.updateGetters = function () {
-                if (!node.graph) return;
+            nodeType.prototype._validateName = function () {
+                if (!this.graph) return;
+                let name = this.widgets[0].value;
+                if (name === "") return;
+                const existing = new Set();
+                for (const n of this.graph._nodes) {
+                    if (n !== this && n.comfyClass === "IXISetNode" && n.widgets && n.widgets[0])
+                        existing.add(n.widgets[0].value);
+                }
+                let base = name, i = 0;
+                while (existing.has(name)) { name = base + "_" + i++; }
+                this.widgets[0].value = name;
+            };
 
-                // Update type on matching GetNodes
-                node.graph._nodes
-                    .filter((n) => n.comfyClass === "IXIGetNode" && n.widgets[0] && n.widgets[0].value === node.widgets[0].value)
-                    .forEach((getter) => {
-                        if (getter.setType) getter.setType(node.inputs[0].type);
-                    });
-
-                // Rename GetNodes that had previous name
-                if (node.properties.previousName) {
-                    node.graph._nodes
-                        .filter((n) => n.comfyClass === "IXIGetNode" && n.widgets[0] && n.widgets[0].value === node.properties.previousName)
-                        .forEach((getter) => {
-                            if (getter.setGetName) getter.setGetName(node.widgets[0].value);
-                        });
+            nodeType.prototype._updateGetters = function () {
+                if (!this.graph) return;
+                const myName = this.widgets[0].value;
+                const prevName = this.properties.previousName;
+                for (const n of this.graph._nodes) {
+                    if (n.comfyClass !== "IXIGetNode" || !n.widgets || !n.widgets[0]) continue;
+                    if (n.widgets[0].value === myName && n.setType)
+                        n.setType(this.inputs[0].type);
+                    if (prevName && n.widgets[0].value === prevName && n.setGetName)
+                        n.setGetName(myName);
                 }
             };
 
-            const origOnConnectionsChange = node.onConnectionsChange;
-            node.onConnectionsChange = function (slotType, slot, isConnect, linkInfo) {
-                if (origOnConnectionsChange) origOnConnectionsChange.apply(this, arguments);
-                if (!node.graph || !linkInfo) return;
-
+            const origConnChange = nodeType.prototype.onConnectionsChange;
+            nodeType.prototype.onConnectionsChange = function (slotType, slot, isConnect, linkInfo) {
+                if (origConnChange) origConnChange.apply(this, arguments);
+                if (!this.graph || !linkInfo) return;
                 if (slotType === 1 && isConnect) {
-                    const originNode = node.graph.getNodeById(linkInfo.origin_id);
-                    if (originNode && originNode.outputs && originNode.outputs[linkInfo.origin_slot]) {
-                        const type = originNode.outputs[linkInfo.origin_slot].type;
-                        node.inputs[0].type = type;
-                        node.inputs[0].name = type;
-                        node.outputs[0].type = type;
-                        node.outputs[0].name = type;
-                        applyColorByType(node, type);
-                        node.updateGetters();
+                    const origin = this.graph.getNodeById(linkInfo.origin_id);
+                    if (origin && origin.outputs && origin.outputs[linkInfo.origin_slot]) {
+                        const type = origin.outputs[linkInfo.origin_slot].type;
+                        this.inputs[0].type = type;
+                        this.inputs[0].name = type;
+                        this.outputs[0].type = type;
+                        this.outputs[0].name = type;
+                        applyColorByType(this, type);
+                        this._updateGetters();
                     }
                 }
-
                 if (slotType === 1 && !isConnect) {
-                    node.inputs[0].type = "*";
-                    node.inputs[0].name = "*";
-                    node.outputs[0].type = "*";
-                    node.outputs[0].name = "*";
-                    node.color = undefined;
-                    node.bgcolor = undefined;
-                    node.updateGetters();
+                    this.inputs[0].type = "*";
+                    this.inputs[0].name = "*";
+                    this.outputs[0].type = "*";
+                    this.outputs[0].name = "*";
+                    this.color = undefined;
+                    this.bgcolor = undefined;
+                    this._updateGetters();
                 }
             };
 
-            const origOnAdded = node.onAdded;
-            node.onAdded = function (graph) {
+            const origOnAdded = nodeType.prototype.onAdded;
+            nodeType.prototype.onAdded = function (graph) {
                 if (origOnAdded) origOnAdded.apply(this, arguments);
-                node.validateName(graph);
+                this._validateName();
             };
 
-            const origOnRemoved = node.onRemoved;
-            node.onRemoved = function () {
-                if (origOnRemoved) origOnRemoved.apply(this, arguments);
+            // Ensure correct state after deserialization
+            const origConfigure = nodeType.prototype.onConfigure;
+            nodeType.prototype.onConfigure = function (info) {
+                if (origConfigure) origConfigure.apply(this, arguments);
+                this.isVirtualNode = true;
+                // Restore title from widget value
+                if (this.widgets && this.widgets[0] && this.widgets[0].value) {
+                    this.title = "Set: " + this.widgets[0].value;
+                }
             };
-
-            node.setSize(node.computeSize());
         }
 
         // ─── GetNode ───
-        if (node.comfyClass === "IXIGetNode") {
-            node.isVirtualNode = true;
-            node.serialize_widgets = true;
+        if (nodeData.name === "IXIGetNode") {
+            const origCreated = nodeType.prototype.onNodeCreated;
+            nodeType.prototype.onNodeCreated = function () {
+                if (origCreated) origCreated.apply(this, arguments);
 
-            // Remove Python-defined inputs/outputs and rebuild
-            while (node.inputs.length > 0) node.removeInput(0);
-            while (node.outputs.length > 0) node.removeOutput(0);
-            node.widgets.length = 0;
+                this.isVirtualNode = true;
+                this.serialize_widgets = true;
 
-            // Add combo widget listing all SetNode names
-            node.addWidget("combo", "Name", "", (value) => {
-                node.onRename();
-            }, {
-                values: () => {
-                    if (!node.graph) return [""];
-                    const setters = node.graph._nodes.filter(
-                        (n) => n.comfyClass === "IXISetNode"
-                    );
-                    const names = setters
-                        .map((n) => (n.widgets && n.widgets[0]) ? n.widgets[0].value : "")
-                        .filter((v) => v !== "")
-                        .sort();
-                    return names.length > 0 ? names : [""];
-                }
-            });
+                // Clear Python defaults and build from scratch
+                this.inputs = [];
+                this.outputs = [];
+                this.widgets = [];
 
-            // Add wildcard output
-            node.addOutput("*", "*");
+                const self = this;
+                this.addWidget("combo", "Name", "", (value) => {
+                    self._onRename();
+                }, {
+                    values: () => {
+                        if (!self.graph) return [""];
+                        const names = [];
+                        for (const n of self.graph._nodes) {
+                            if (n.comfyClass === "IXISetNode" && n.widgets && n.widgets[0] && n.widgets[0].value !== "")
+                                names.push(n.widgets[0].value);
+                        }
+                        names.sort();
+                        return names.length > 0 ? names : [""];
+                    }
+                });
 
-            node.onRename = function () {
-                const setter = node.findSetter();
+                this.addOutput("*", "*");
+                this.setSize(this.computeSize());
+            };
+
+            nodeType.prototype._onRename = function () {
+                const setter = this._findSetter();
                 if (setter) {
                     const type = setter.inputs[0].type;
-                    node.setType(type);
-                    node.title = "Get: " + setter.widgets[0].value;
-                    applyColorByType(node, type);
+                    this.setType(type);
+                    this.title = "Get: " + setter.widgets[0].value;
+                    applyColorByType(this, type);
                 } else {
-                    node.setType("*");
-                    node.title = "Get";
-                    node.color = undefined;
-                    node.bgcolor = undefined;
+                    this.setType("*");
+                    this.title = "Get";
+                    this.color = undefined;
+                    this.bgcolor = undefined;
                 }
             };
 
-            node.setGetName = function (name) {
-                node.widgets[0].value = name;
-                node.onRename();
+            nodeType.prototype.setGetName = function (name) {
+                this.widgets[0].value = name;
+                this._onRename();
             };
 
-            node.setType = function (type) {
-                node.outputs[0].name = type;
-                node.outputs[0].type = type;
+            nodeType.prototype.setType = function (type) {
+                this.outputs[0].name = type;
+                this.outputs[0].type = type;
             };
 
-            node.findSetter = function () {
-                if (!node.graph) return null;
-                const name = node.widgets[0].value;
+            nodeType.prototype._findSetter = function () {
+                if (!this.graph) return null;
+                const name = this.widgets[0].value;
                 if (!name) return null;
-                return node.graph._nodes.find(
-                    (n) => n.comfyClass === "IXISetNode" && n.widgets[0] && n.widgets[0].value === name
-                );
-            };
-
-            // Key method: resolves virtual connection at queue time
-            node.getInputLink = function (slot) {
-                const setter = node.findSetter();
-                if (setter) {
-                    const slotInfo = setter.inputs[slot];
-                    if (slotInfo && slotInfo.link != null) {
-                        return node.graph.links[slotInfo.link];
-                    }
+                for (const n of this.graph._nodes) {
+                    if (n.comfyClass === "IXISetNode" && n.widgets && n.widgets[0] && n.widgets[0].value === name)
+                        return n;
                 }
                 return null;
             };
 
-            node.setSize(node.computeSize());
+            // Resolves virtual connection at queue time
+            nodeType.prototype.getInputLink = function (slot) {
+                const setter = this._findSetter();
+                if (setter && setter.inputs[slot] && setter.inputs[slot].link != null) {
+                    return this.graph.links[setter.inputs[slot].link];
+                }
+                return null;
+            };
+
+            // Ensure correct state after deserialization
+            const origConfigure = nodeType.prototype.onConfigure;
+            nodeType.prototype.onConfigure = function (info) {
+                if (origConfigure) origConfigure.apply(this, arguments);
+                this.isVirtualNode = true;
+                if (this.widgets && this.widgets[0] && this.widgets[0].value) {
+                    this._onRename();
+                }
+            };
         }
     }
 });

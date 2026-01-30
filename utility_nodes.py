@@ -113,37 +113,28 @@ class SwitchCaseNode:
 class IXISetNode:
     @classmethod
     def INPUT_TYPES(cls):
-        return {
-            "required": {
-                "name": ("STRING", {"default": ""}),
-                "value": (ANY,),
-            }
-        }
+        return {"required": {}}
 
     RETURN_TYPES = (ANY,)
     RETURN_NAMES = ("value",)
     FUNCTION = "execute"
     CATEGORY = "IXIWORKS/Utils"
 
-    def execute(self, name, value):
-        return (value,)
+    def execute(self, **kwargs):
+        return (None,)
 
 
 class IXIGetNode:
     @classmethod
     def INPUT_TYPES(cls):
-        return {
-            "required": {
-                "name": ("STRING", {"default": ""}),
-            }
-        }
+        return {"required": {}}
 
     RETURN_TYPES = (ANY,)
     RETURN_NAMES = ("value",)
     FUNCTION = "execute"
     CATEGORY = "IXIWORKS/Utils"
 
-    def execute(self, name):
+    def execute(self, **kwargs):
         return (None,)
 
 
