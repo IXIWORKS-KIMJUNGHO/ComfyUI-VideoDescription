@@ -118,19 +118,48 @@ app.registerExtension({
                 this._validateName();
             };
 
-            // Ensure correct state after deserialization
-            const origConfigure = nodeType.prototype.onConfigure;
-            nodeType.prototype.onConfigure = function (info) {
+            // Wrap configure to set _configuring flag for the ENTIRE process
+            // (onConfigure alone is too late - configure() body runs first)
+            nodeType.prototype.configure = function (info) {
                 this._configuring = true;
-                if (origConfigure) origConfigure.apply(this, arguments);
+                LGraphNode.prototype.configure.call(this, info);
+                this._configuring = false;
+            };
+
+            // Ensure correct state after deserialization
+            const origOnConfigure = nodeType.prototype.onConfigure;
+            nodeType.prototype.onConfigure = function (info) {
+                if (origOnConfigure) origOnConfigure.apply(this, arguments);
                 this.isVirtualNode = true;
 
-                // Trim to exactly 1 input, 1 output using API (preserves link references)
+                // Ensure exactly 1 input
                 while (this.inputs.length > 1) this.removeInput(this.inputs.length - 1);
                 if (this.inputs.length === 0) this.addInput("*", "*");
 
+                // Force restore input link/type from saved data
+                // (configure may discard input if Python definition mismatches)
+                if (info.inputs && info.inputs[0]) {
+                    const saved = info.inputs[0];
+                    this.inputs[0].type = saved.type || "*";
+                    this.inputs[0].name = saved.name || "*";
+                    if (saved.link != null) {
+                        this.inputs[0].link = saved.link;
+                    }
+                }
+
+                // Ensure exactly 1 output
                 while (this.outputs.length > 1) this.removeOutput(this.outputs.length - 1);
                 if (this.outputs.length === 0) this.addOutput("*", "*");
+
+                // Force restore output links/type from saved data
+                if (info.outputs && info.outputs[0]) {
+                    const saved = info.outputs[0];
+                    this.outputs[0].type = saved.type || "*";
+                    this.outputs[0].name = saved.name || "*";
+                    if (saved.links) {
+                        this.outputs[0].links = saved.links.slice();
+                    }
+                }
 
                 // Restore widget callback (deserialization doesn't preserve callbacks)
                 if (this.widgets && this.widgets.length > 0) {
@@ -142,7 +171,6 @@ app.registerExtension({
                     applyColorByType(this, this.inputs[0].type);
                 }
                 this.setSize(this.computeSize());
-                this._configuring = false;
             };
         }
 

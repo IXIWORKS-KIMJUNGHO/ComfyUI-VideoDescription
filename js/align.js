@@ -70,18 +70,18 @@ function distributeNodes(nodes, axis) {
     if (nodes.length < 2) return;
     if (axis === "horizontal") {
         nodes.sort((a, b) => a.pos[0] - b.pos[0]);
-        let x = nodes[0].pos[0];
-        nodes.forEach((n) => {
-            n.pos[0] = x;
-            x += n.size[0] + GAP;
-        });
+        let x = nodes[0].pos[0] + nodes[0].size[0] + GAP;
+        for (let i = 1; i < nodes.length; i++) {
+            nodes[i].pos[0] = x;
+            x += nodes[i].size[0] + GAP;
+        }
     } else {
         nodes.sort((a, b) => a.pos[1] - b.pos[1]);
-        let y = nodes[0].pos[1];
-        nodes.forEach((n) => {
-            n.pos[1] = y;
-            y += n.size[1] + GAP;
-        });
+        let y = nodes[0].pos[1] + nodes[0].size[1] + GAP;
+        for (let i = 1; i < nodes.length; i++) {
+            nodes[i].pos[1] = y;
+            y += nodes[i].size[1] + GAP;
+        }
     }
     app.graph.setDirtyCanvas(true, true);
 }
